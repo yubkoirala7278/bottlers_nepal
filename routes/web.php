@@ -9,6 +9,7 @@ use App\Http\Controllers\WarehouseLocationController;
 use App\Http\Controllers\InboundController;
 use App\Http\Controllers\OutboundController;
 use App\Http\Controllers\BulkOperationController;
+use App\Http\Controllers\UserController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -147,4 +148,22 @@ Route::middleware('auth')->post('/admin/get-location-depths', function (Request 
 
 Route::post('/test-inbound', function (Request $request) {
     return response()->json(['success' => true, 'data' => $request->all()]);
+});
+
+// In routes/web.php, add these routes
+Route::middleware('auth')->group(function () {
+    // User Management (Admin only)
+    Route::middleware('role:admin')->prefix('users')->name('users.')->group(function () {
+        Route::get('/', [UserController::class, 'index'])->name('index');
+        Route::get('/create', [UserController::class, 'create'])->name('create');
+        Route::post('/', [UserController::class, 'store'])->name('store');
+        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+        Route::put('/{user}', [UserController::class, 'update'])->name('update');
+        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+        Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
+    });
+    
+    // Profile Management (All authenticated users)
+    Route::get('/profile', [UserController::class, 'profile'])->name('users.profile');
+    Route::put('/profile', [UserController::class, 'updateProfile'])->name('users.profile.update');
 });

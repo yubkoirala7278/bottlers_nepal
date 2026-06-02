@@ -738,7 +738,7 @@
                         .then(data => {
                             if (data.length === 0) {
                                 locationsList.innerHTML =
-                                '<div class="empty-state">No locations found for this batch</div>';
+                                    '<div class="empty-state">No locations found for this batch</div>';
                                 locationsContainer.style.display = 'none';
                             } else {
                                 locationsList.innerHTML = '';
@@ -753,17 +753,17 @@
                                     locationDiv.dataset.maxPick = location.max_pick;
                                     locationDiv.dataset.depths = JSON.stringify(depthPositions);
                                     locationDiv.innerHTML = `
-                            <div class="location-info">
-                                <div class="location-code">${location.location_code}</div>
-                                <div class="location-details">
-                                    Available: ${location.quantity} units
-                                    ${maxDepth > 0 ? `<span class="depth-badge">Next pick: Depth ${maxDepth}</span>` : ''}
-                                </div>
-                            </div>
-                            <div class="location-quantity">
-                                ${location.quantity} units
-                            </div>
-                        `;
+                                    <div class="location-info">
+                                        <div class="location-code">${location.location_code}</div>
+                                        <div class="location-details">
+                                            Available: ${location.quantity} units
+                                            ${maxDepth > 0 ? `<span class="depth-badge">Next pick: Depth ${maxDepth}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="location-quantity">
+                                        ${location.quantity} units
+                                    </div>
+                                `;
                                     locationDiv.onclick = () => selectLocation(locationDiv, location);
                                     locationsList.appendChild(locationDiv);
                                 });
