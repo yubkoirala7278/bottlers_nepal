@@ -164,40 +164,140 @@ class BulkOperationController extends Controller
             ->first();
 
         if (!$inventory || $inventory->quantity < $request->quantity) {
-            return back()->with('error', 'Not enough items at this location.');
+            $message = 'Not enough items at this location.';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message]);
+            }
+            return back()->with('error', $message);
         }
 
         DB::beginTransaction();
         try {
+            // Get current depth positions and sort for LIFO (highest first)
             $depthPositions = $inventory->depth_positions ?: [];
-            sort($depthPositions, SORT_DESC);
 
-            $pickedCount = 0;
-            while ($pickedCount < $request->quantity && !empty($depthPositions)) {
-                array_shift($depthPositions);
-                $pickedCount++;
+            // Log before state
+            \Log::info('Before pickup', [
+                'location' => $request->location_code,
+                'quantity_before' => $inventory->quantity,
+                'depths_before' => $depthPositions
+            ]);
+
+            // Sort in descending order (highest depth first) for LIFO picking
+            rsort($depthPositions);
+
+            // LIFO PICKING: Remove from highest depth first
+            $pickedDepths = [];
+            $remainingDepths = $depthPositions;
+
+            for ($i = 0; $i < $request->quantity; $i++) {
+                if (!empty($remainingDepths)) {
+                    $pickedDepths[] = array_shift($remainingDepths); // Remove highest depth
+                }
             }
 
+            // Log what was picked
+            \Log::info('Picked depths', ['picked' => $pickedDepths]);
+
+            // Update inventory
             $newQuantity = $inventory->quantity - $request->quantity;
 
             if ($newQuantity == 0) {
                 $inventory->delete();
+                \Log::info('Inventory deleted - location now empty');
             } else {
+                // Keep remaining depths (already in descending order)
                 $inventory->quantity = $newQuantity;
-                $inventory->depth_positions = array_values($depthPositions);
+                $inventory->depth_positions = array_values($remainingDepths);
                 $inventory->save();
+                \Log::info('After pickup', [
+                    'quantity_after' => $newQuantity,
+                    'depths_after_raw' => $remainingDepths
+                ]);
             }
 
+            // Update location fill level
             $location->current_fill -= $request->quantity;
             $location->save();
 
+            // CRITICAL: Auto-shift remaining items to fill gaps from highest depth
+            if ($newQuantity > 0) {
+                $this->reindexLocationDepths($location);
+
+                // Log after reindex
+                $updatedInventory = Inventory::where('warehouse_location_id', $location->id)->first();
+                if ($updatedInventory) {
+                    \Log::info('After reindex', [
+                        'depths_after_reindex' => $updatedInventory->depth_positions
+                    ]);
+                }
+            }
+
             DB::commit();
 
-            return redirect()->route('admin.bulk.outbound')
-                ->with('success', "Successfully picked {$request->quantity} items from {$request->location_code}");
+            $message = "Successfully picked {$request->quantity} items from {$request->location_code}";
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'message' => $message]);
+            }
+
+            return redirect()->route('admin.bulk.outbound')->with('success', $message);
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->with('error', 'Failed to pick items: ' . $e->getMessage());
+            \Log::error('Bulk outbound error: ' . $e->getMessage());
+            $message = 'Failed to pick items: ' . $e->getMessage();
+
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message]);
+            }
+            return back()->with('error', $message);
+        }
+    }
+
+    // Make sure reindexLocationDepths is working correctly
+    private function reindexLocationDepths($location)
+    {
+        // Get all inventory at this location
+        $inventories = Inventory::where('warehouse_location_id', $location->id)
+            ->orderBy('id')
+            ->get();
+
+        if ($inventories->isEmpty()) {
+            return;
+        }
+
+        // Collect all remaining items
+        $allItems = [];
+        foreach ($inventories as $inv) {
+            $batchId = $inv->batch_id;
+            $quantity = $inv->quantity;
+            for ($i = 0; $i < $quantity; $i++) {
+                $allItems[] = $batchId;
+            }
+        }
+
+        // Reassign depths from highest (max_depth) down to 1
+        $currentDepth = $location->max_depth;
+        $newInventoryMap = [];
+
+        foreach ($allItems as $batchId) {
+            if (!isset($newInventoryMap[$batchId])) {
+                $newInventoryMap[$batchId] = [];
+            }
+            if ($currentDepth >= 1) {
+                $newInventoryMap[$batchId][] = $currentDepth;
+                $currentDepth--;
+            }
+        }
+
+        // Update inventory records
+        foreach ($inventories as $inv) {
+            if (isset($newInventoryMap[$inv->batch_id])) {
+                $newDepths = $newInventoryMap[$inv->batch_id];
+                rsort($newDepths); // Keep highest first for LIFO
+                $inv->depth_positions = $newDepths;
+                $inv->quantity = count($newDepths);
+                $inv->save();
+            }
         }
     }
 

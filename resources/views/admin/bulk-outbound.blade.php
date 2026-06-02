@@ -6,16 +6,16 @@
 @section('content')
     <style>
         .bulk-container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
         .bulk-card {
             background: white;
-            border-radius: 16px;
-            padding: 2rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 2rem;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
         }
 
         .form-group {
@@ -26,30 +26,35 @@
             display: block;
             font-weight: 600;
             margin-bottom: 0.5rem;
-            color: #333;
-            font-size: 0.9rem;
+            color: #1a1a2e;
+            font-size: 0.875rem;
         }
 
         .form-group select,
         .form-group input {
             width: 100%;
-            padding: 0.75rem;
-            border: 2px solid #e0e0e0;
+            padding: 0.625rem 0.75rem;
+            border: 1px solid #d1d5db;
             border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+            background: white;
         }
 
         .form-group select:focus,
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
+        /* Locations List */
         .locations-list {
-            margin-top: 1rem;
             max-height: 400px;
             overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
         }
 
         .location-item {
@@ -57,117 +62,283 @@
             justify-content: space-between;
             align-items: center;
             padding: 1rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #e5e7eb;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            background: white;
         }
 
         .location-item:hover {
-            transform: translateX(5px);
-            border-color: #667eea;
+            background: #f3f4f6;
+            transform: translateX(4px);
         }
 
         .location-item.selected {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-color: #667eea;
-        }
-
-        .location-code {
-            font-weight: bold;
-            font-size: 1.1rem;
+            background: #ecfdf5;
+            border-left: 4px solid #10b981;
         }
 
         .location-info {
+            flex: 1;
+        }
+
+        .location-code {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #1f2937;
+            margin-bottom: 0.25rem;
+        }
+
+        .location-details {
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+
+        .location-quantity {
+            text-align: right;
+            font-weight: 600;
+            color: #4f46e5;
             font-size: 0.875rem;
+        }
+
+        .depth-badge {
+            display: inline-block;
+            background: #e5e7eb;
+            padding: 0.125rem 0.375rem;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            margin-left: 0.5rem;
+        }
+
+        /* Depth Visualization */
+        .depth-visualization {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .depth-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            margin-bottom: 0.75rem;
+            color: #374151;
+        }
+
+        .depth-bars {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .depth-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+        }
+
+        .depth-label {
+            width: 35px;
+            text-align: right;
+            color: #6b7280;
+        }
+
+        .depth-bar-container {
+            flex: 1;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .depth-bar {
+            height: 100%;
+            background: #4f46e5;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 4px;
+            color: white;
+            font-size: 0.6rem;
+            font-weight: 600;
+        }
+
+        .depth-bar.occupied {
+            background: #10b981;
+        }
+
+        /* Quantity Control */
+        .quantity-section {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #e5e7eb;
         }
 
         .quantity-control {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.75rem;
             margin-top: 0.5rem;
         }
 
-        .quantity-control button {
-            width: 48px;
-            height: 48px;
+        .quantity-btn {
+            width: 40px;
+            height: 40px;
             border-radius: 8px;
-            border: 2px solid #e0e0e0;
+            border: 1px solid #d1d5db;
             background: white;
-            font-size: 1.5rem;
-            font-weight: bold;
+            font-size: 1.25rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            color: #4b5563;
         }
 
-        .quantity-control button:active {
-            transform: scale(0.95);
+        .quantity-btn:hover:not(:disabled) {
+            background: #f3f4f6;
+            border-color: #9ca3af;
         }
 
-        .quantity-control input {
+        .quantity-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .quantity-input {
             flex: 1;
             text-align: center;
-            font-size: 1.25rem;
-            font-weight: bold;
-            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 0.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .info-text {
+            margin-top: 0.75rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
         }
 
         .btn-submit {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #4f46e5;
             color: white;
             width: 100%;
-            padding: 1rem;
+            padding: 0.75rem;
             border: none;
             border-radius: 8px;
-            font-size: 1rem;
+            font-size: 0.875rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
+            margin-top: 1rem;
         }
 
         .btn-submit:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            background: #4338ca;
         }
 
         .btn-submit:disabled {
-            opacity: 0.6;
+            background: #9ca3af;
             cursor: not-allowed;
         }
 
         .info-box {
-            background: #fff3e0;
-            border-left: 4px solid #ff9800;
-            padding: 1rem;
+            background: #f0fdf4;
+            border-left: 4px solid #10b981;
+            padding: 0.75rem 1rem;
             border-radius: 8px;
             margin-bottom: 1.5rem;
+        }
+
+        .info-box h4 {
+            margin-bottom: 0.5rem;
+            color: #065f46;
+            font-size: 0.875rem;
+        }
+
+        .info-box p {
+            font-size: 0.75rem;
+            color: #047857;
+        }
+
+        .info-box ul {
+            margin-left: 1.25rem;
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: #047857;
         }
 
         .loading {
             text-align: center;
             padding: 2rem;
+            color: #6b7280;
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #4f46e5;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 0.5rem;
         }
 
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #9ca3af;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 500;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast-success {
+            background: #10b981;
+        }
+
+        .toast-error {
+            background: #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
             }
 
-            100% {
-                transform: rotate(360deg);
+            to {
+                transform: translateX(0);
+                opacity: 1;
             }
         }
 
@@ -182,64 +353,87 @@
                 gap: 0.5rem;
             }
 
-            .quantity-control button {
-                width: 40px;
-                height: 40px;
+            .location-quantity {
+                text-align: center;
+            }
+
+            .quantity-btn {
+                width: 36px;
+                height: 36px;
             }
         }
     </style>
 
     <div class="bulk-container">
-        <h1 style="margin-bottom: 1.5rem;">📤 Bulk Outbound Management</h1>
+        <h1 style="margin-bottom: 1.5rem; font-size: 1.5rem; color: #1f2937;">Bulk Outbound</h1>
 
         <div class="info-box">
-            <h4>ℹ️ Bulk Outbound Instructions</h4>
-            <p>Select a product and batch to see all locations where it's stored. Then choose a location and the quantity to
-                pick. The system will automatically use LIFO (Last In First Out) - picking from the highest depth first.</p>
+            <h4>LIFO Picking Algorithm (Last In, First Out)</h4>
+            <ul>
+                <li>Items are picked from the highest depth number first (top of stack)</li>
+                <li>After picking, remaining items automatically shift up to fill gaps</li>
+                <li>This maintains LIFO order for future picks</li>
+                <li>Example: If depths 50,49,48 are occupied, pick from 50 first, then 49, then 48</li>
+            </ul>
         </div>
 
         <div class="bulk-card">
-            <form method="POST" action="{{ route('admin.bulk.outbound.process') }}" id="bulkOutboundForm">
+            <form id="bulkOutboundForm">
                 @csrf
 
                 <div class="form-group">
-                    <label for="product_id">Select Product *</label>
+                    <label for="product_id">Select Product</label>
                     <select id="product_id" name="product_id" required>
-                        <option value="">-- Select Product --</option>
+                        <option value="">Select product</option>
                         @foreach ($products as $product)
-                            <option value="{{ $product->id }}">{{ $product->full_name }}</option>
+                            <option value="{{ $product->id }}">{{ $product->name }} - {{ $product->sku }}</option>
                         @endforeach
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="batch_id">Select Batch *</label>
+                    <label for="batch_id">Select Batch</label>
                     <select id="batch_id" name="batch_id" required disabled>
-                        <option value="">-- First select product --</option>
+                        <option value="">Select product first</option>
                     </select>
                 </div>
 
                 <div id="locationsContainer" style="display: none;">
                     <div class="form-group">
-                        <label>Select Location to Pick From *</label>
-                        <div id="locationsList" class="locations-list"></div>
-                        <input type="hidden" id="selected_location" name="location_code" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="pickup_quantity">Number of Products to Pick *</label>
-                        <div class="quantity-control">
-                            <button type="button" id="decrementQty"
-                                style="background: #ff5722; color: white; border: none;">−</button>
-                            <input type="number" id="pickup_quantity" name="quantity" min="1" value="1"
-                                required>
-                            <button type="button" id="incrementQty"
-                                style="background: #4caf50; color: white; border: none;">+</button>
+                        <label>Select Location to Pick From</label>
+                        <div id="locationsList" class="locations-list">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <p>Loading locations...</p>
+                            </div>
                         </div>
-                        <small id="quantityInfo" style="color: #666; display: block; margin-top: 0.5rem;"></small>
+                        <input type="hidden" id="selected_location" name="location_code">
                     </div>
 
-                    <button type="submit" class="btn-submit">✅ Confirm Pickup</button>
+                    <div id="depthVisualization" class="depth-visualization" style="display: none;">
+                        <div class="depth-title">Depth Visualization (LIFO Order - Pick from Top)</div>
+                        <div id="depthBars" class="depth-bars"></div>
+                        <div class="info-text" style="margin-top: 0.5rem; font-size: 0.7rem;">
+                            <span style="color: #10b981;">■</span> Occupied |
+                            <span style="color: #e5e7eb;">■</span> Empty |
+                            <span style="color: #4f46e5;">■</span> Will be picked next (highest depth)
+                        </div>
+                    </div>
+
+                    <div id="quantitySection" style="display: none;">
+                        <div class="quantity-section">
+                            <label style="font-weight: 600; font-size: 0.875rem;">Number of Items to Pick</label>
+                            <div class="quantity-control">
+                                <button type="button" class="quantity-btn" id="decrementQty">−</button>
+                                <input type="number" id="pickupQuantity" name="quantity" min="1" value="1"
+                                    class="quantity-input">
+                                <button type="button" class="quantity-btn" id="incrementQty">+</button>
+                            </div>
+                            <div id="pickupInfo" class="info-text"></div>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="submitBtn" style="display: none;">Confirm Pickup</button>
                 </div>
             </form>
         </div>
@@ -247,19 +441,34 @@
 
     @push('scripts')
         <script>
-            let currentLocations = [];
-            let selectedLocationData = null;
+            let currentBatchId = null;
+            let currentLocation = null;
             let currentMaxQuantity = 0;
+            let currentDepthPositions = [];
 
             const productSelect = document.getElementById('product_id');
             const batchSelect = document.getElementById('batch_id');
             const locationsContainer = document.getElementById('locationsContainer');
             const locationsList = document.getElementById('locationsList');
-            const quantityInput = document.getElementById('pickup_quantity');
+            const depthVisualization = document.getElementById('depthVisualization');
+            const quantitySection = document.getElementById('quantitySection');
+            const quantityInput = document.getElementById('pickupQuantity');
             const decrementBtn = document.getElementById('decrementQty');
             const incrementBtn = document.getElementById('incrementQty');
-            const quantityInfo = document.getElementById('quantityInfo');
+            const pickupInfo = document.getElementById('pickupInfo');
             const selectedLocationInput = document.getElementById('selected_location');
+            const submitBtn = document.getElementById('submitBtn');
+
+            function showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.innerHTML = type === 'success' ? '✓ ' + message : '✗ ' + message;
+                document.body.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            }
 
             // Load batches when product is selected
             productSelect.addEventListener('change', function() {
@@ -276,10 +485,11 @@
                         })
                         .then(response => response.json())
                         .then(data => {
-                            batchSelect.innerHTML = '<option value="">-- Select Batch --</option>';
+                            batchSelect.innerHTML = '<option value="">Select batch</option>';
                             if (data.length === 0) {
                                 batchSelect.innerHTML += '<option value="">No batches available</option>';
                                 batchSelect.disabled = true;
+                                locationsContainer.style.display = 'none';
                             } else {
                                 data.forEach(batch => {
                                     batchSelect.innerHTML +=
@@ -290,7 +500,7 @@
                         });
                 } else {
                     batchSelect.disabled = true;
-                    batchSelect.innerHTML = '<option value="">-- First select product --</option>';
+                    batchSelect.innerHTML = '<option value="">Select product first</option>';
                     locationsContainer.style.display = 'none';
                 }
             });
@@ -298,9 +508,13 @@
             // Load locations when batch is selected
             batchSelect.addEventListener('change', function() {
                 if (this.value && productSelect.value) {
+                    currentBatchId = this.value;
+                    locationsContainer.style.display = 'block';
                     locationsList.innerHTML =
                         '<div class="loading"><div class="spinner"></div><p>Loading locations...</p></div>';
-                    locationsContainer.style.display = 'block';
+                    depthVisualization.style.display = 'none';
+                    quantitySection.style.display = 'none';
+                    submitBtn.style.display = 'none';
 
                     fetch('{{ route('admin.bulk.outbound.locations') }}', {
                             method: 'POST',
@@ -315,128 +529,248 @@
                         })
                         .then(response => response.json())
                         .then(data => {
-                            currentLocations = data;
-
                             if (data.length === 0) {
                                 locationsList.innerHTML =
-                                    '<div style="text-align: center; padding: 2rem; color: #999;">No locations found for this batch</div>';
-                                return;
-                            }
+                                    '<div class="empty-state">No locations found for this batch</div>';
+                            } else {
+                                locationsList.innerHTML = '';
+                                data.forEach(location => {
+                                    const depthPositions = location.depth_positions || [];
+                                    const maxDepth = Math.max(...depthPositions, 0);
 
-                            locationsList.innerHTML = '';
-                            data.forEach(location => {
-                                const locationDiv = document.createElement('div');
-                                locationDiv.className = 'location-item';
-                                locationDiv.dataset.location = location.location_code;
-                                locationDiv.dataset.quantity = location.quantity;
-                                locationDiv.dataset.maxPick = location.max_pick;
-                                locationDiv.innerHTML = `
-                        <div>
-                            <div class="location-code">📍 ${location.location_code}</div>
-                            <div class="location-info">Available: ${location.quantity} units</div>
-                        </div>
-                        <div class="location-info">Depth positions: ${location.depth_positions?.join(', ') || 'N/A'}</div>
-                    `;
-                                locationDiv.onclick = () => selectLocation(locationDiv, location);
-                                locationsList.appendChild(locationDiv);
-                            });
+                                    const locationDiv = document.createElement('div');
+                                    locationDiv.className = 'location-item';
+                                    locationDiv.dataset.location = location.location_code;
+                                    locationDiv.dataset.quantity = location.quantity;
+                                    locationDiv.dataset.maxPick = location.max_pick;
+                                    locationDiv.dataset.depths = JSON.stringify(depthPositions);
+                                    locationDiv.innerHTML = `
+                            <div class="location-info">
+                                <div class="location-code">${location.location_code}</div>
+                                <div class="location-details">
+                                    Available: ${location.quantity} units
+                                    ${maxDepth > 0 ? `<span class="depth-badge">Next pick: Depth ${maxDepth}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="location-quantity">
+                                ${location.quantity} units
+                            </div>
+                        `;
+                                    locationDiv.onclick = () => selectLocation(locationDiv, location);
+                                    locationsList.appendChild(locationDiv);
+                                });
+                            }
                         });
-                } else {
-                    locationsContainer.style.display = 'none';
                 }
             });
 
             function selectLocation(element, location) {
-                // Remove selected class from all
                 document.querySelectorAll('.location-item').forEach(item => {
                     item.classList.remove('selected');
                 });
-
-                // Add selected class
                 element.classList.add('selected');
 
-                selectedLocationData = location;
-                selectedLocationInput.value = location.location_code;
+                currentLocation = location;
                 currentMaxQuantity = location.max_pick;
+                currentDepthPositions = location.depth_positions || [];
 
+                selectedLocationInput.value = location.location_code;
                 quantityInput.max = currentMaxQuantity;
                 quantityInput.value = Math.min(1, currentMaxQuantity);
-                quantityInfo.innerHTML =
-                    `Selected: ${location.location_code} | Available: ${location.quantity} units | Max pick: ${currentMaxQuantity}`;
 
+                // Show depth visualization
+                showDepthVisualization(location.location_code, currentDepthPositions);
+
+                // Show pickup info
+                const nextPickDepth = currentDepthPositions.length > 0 ? Math.max(...currentDepthPositions) : 0;
+                pickupInfo.innerHTML = `
+            <strong>Location:</strong> ${location.location_code}<br>
+            <strong>Available:</strong> ${location.quantity} units<br>
+            <strong>Next Pick Depth:</strong> ${nextPickDepth > 0 ? nextPickDepth : 'None'}<br>
+            <strong>Max Pick:</strong> ${currentMaxQuantity} units<br>
+            <span style="color: #4f46e5;">LIFO: Will pick from highest depth first (${nextPickDepth})</span>
+        `;
+
+                quantitySection.style.display = 'block';
+                submitBtn.style.display = 'block';
                 updateButtons();
             }
 
-            function updateButtons() {
-                let currentValue = parseInt(quantityInput.value);
+            function showDepthVisualization(locationCode, depthPositions) {
+                depthVisualization.style.display = 'block';
+                const depthBars = document.getElementById('depthBars');
+                depthBars.innerHTML = '';
 
-                if (currentValue <= 1) {
-                    decrementBtn.disabled = true;
-                } else {
-                    decrementBtn.disabled = false;
-                }
+                // Show from highest depth (50) down to lowest (1)
+                for (let depth = 50; depth >= 1; depth--) {
+                    const isOccupied = depthPositions.includes(depth);
+                    const isNextPick = isOccupied && depth === Math.max(...depthPositions);
 
-                if (currentValue >= currentMaxQuantity) {
-                    incrementBtn.disabled = true;
-                } else {
-                    incrementBtn.disabled = false;
+                    const row = document.createElement('div');
+                    row.className = 'depth-row';
+                    row.innerHTML = `
+                <div class="depth-label">Depth ${depth}</div>
+                <div class="depth-bar-container">
+                    <div class="depth-bar ${isOccupied ? 'occupied' : ''}" 
+                         style="width: ${isOccupied ? '100%' : '0%'}; ${isNextPick ? 'background: #4f46e5;' : ''}">
+                        ${isOccupied ? (isNextPick ? 'Next' : depth) : ''}
+                    </div>
+                </div>
+            `;
+                    depthBars.appendChild(row);
                 }
             }
 
+            function updateButtons() {
+                let val = parseInt(quantityInput.value);
+                if (isNaN(val)) val = 1;
+                decrementBtn.disabled = val <= 1;
+                incrementBtn.disabled = val >= currentMaxQuantity;
+            }
+
             decrementBtn.addEventListener('click', () => {
-                let currentValue = parseInt(quantityInput.value);
-                if (currentValue > 1) {
-                    quantityInput.value = currentValue - 1;
+                let val = parseInt(quantityInput.value);
+                if (val > 1) {
+                    quantityInput.value = val - 1;
                     updateButtons();
                 }
             });
 
             incrementBtn.addEventListener('click', () => {
-                let currentValue = parseInt(quantityInput.value);
-                if (currentValue < currentMaxQuantity) {
-                    quantityInput.value = currentValue + 1;
+                let val = parseInt(quantityInput.value);
+                if (val < currentMaxQuantity) {
+                    quantityInput.value = val + 1;
                     updateButtons();
                 }
             });
 
             quantityInput.addEventListener('change', () => {
-                let value = parseInt(quantityInput.value);
-                if (isNaN(value)) value = 1;
-                if (value < 1) value = 1;
-                if (value > currentMaxQuantity) value = currentMaxQuantity;
-                quantityInput.value = value;
+                let val = parseInt(quantityInput.value);
+                if (isNaN(val)) val = 1;
+                val = Math.min(Math.max(val, 1), currentMaxQuantity);
+                quantityInput.value = val;
                 updateButtons();
             });
 
-            // Form validation
+            // Handle form submission with AJAX
             document.getElementById('bulkOutboundForm').addEventListener('submit', function(e) {
-                if (!productSelect.value) {
-                    e.preventDefault();
-                    alert('Please select a product');
-                    return false;
-                }
+                e.preventDefault();
 
-                if (!batchSelect.value) {
-                    e.preventDefault();
-                    alert('Please select a batch');
-                    return false;
-                }
-
-                if (!selectedLocationInput.value) {
-                    e.preventDefault();
-                    alert('Please select a location to pick from');
+                if (!productSelect.value || !batchSelect.value || !selectedLocationInput.value) {
+                    showToast('Please complete all selections', 'error');
                     return false;
                 }
 
                 const quantity = parseInt(quantityInput.value);
                 if (quantity < 1 || quantity > currentMaxQuantity) {
-                    e.preventDefault();
-                    alert(`Please enter a quantity between 1 and ${currentMaxQuantity}`);
+                    showToast(`Quantity must be between 1 and ${currentMaxQuantity}`, 'error');
                     return false;
                 }
 
-                return true;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Processing...';
+
+                const formData = new FormData();
+                formData.append('batch_id', batchSelect.value);
+                formData.append('location_code', selectedLocationInput.value);
+                formData.append('quantity', quantity);
+                formData.append('_token', '{{ csrf_token() }}');
+
+                fetch('{{ route('admin.bulk.outbound.process') }}', {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.message, 'success');
+                            // Reset and reload
+                            resetAndReload();
+                        } else {
+                            showToast(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        showToast('Failed to process pickup. Please try again.', 'error');
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Confirm Pickup';
+                    });
             });
+
+            function resetAndReload() {
+                // Reset selection
+                selectedLocationInput.value = '';
+                quantitySection.style.display = 'none';
+                submitBtn.style.display = 'none';
+                depthVisualization.style.display = 'none';
+                currentLocation = null;
+                currentMaxQuantity = 0;
+
+                // Clear selected class
+                document.querySelectorAll('.location-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+
+                // Reload locations to reflect updated inventory
+                if (batchSelect.value && productSelect.value) {
+                    locationsList.innerHTML =
+                        '<div class="loading"><div class="spinner"></div><p>Reloading locations...</p></div>';
+
+                    fetch('{{ route('admin.bulk.outbound.locations') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                product_id: productSelect.value,
+                                batch_id: batchSelect.value
+                            })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.length === 0) {
+                                locationsList.innerHTML =
+                                '<div class="empty-state">No locations found for this batch</div>';
+                                locationsContainer.style.display = 'none';
+                            } else {
+                                locationsList.innerHTML = '';
+                                data.forEach(location => {
+                                    const depthPositions = location.depth_positions || [];
+                                    const maxDepth = Math.max(...depthPositions, 0);
+
+                                    const locationDiv = document.createElement('div');
+                                    locationDiv.className = 'location-item';
+                                    locationDiv.dataset.location = location.location_code;
+                                    locationDiv.dataset.quantity = location.quantity;
+                                    locationDiv.dataset.maxPick = location.max_pick;
+                                    locationDiv.dataset.depths = JSON.stringify(depthPositions);
+                                    locationDiv.innerHTML = `
+                            <div class="location-info">
+                                <div class="location-code">${location.location_code}</div>
+                                <div class="location-details">
+                                    Available: ${location.quantity} units
+                                    ${maxDepth > 0 ? `<span class="depth-badge">Next pick: Depth ${maxDepth}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="location-quantity">
+                                ${location.quantity} units
+                            </div>
+                        `;
+                                    locationDiv.onclick = () => selectLocation(locationDiv, location);
+                                    locationsList.appendChild(locationDiv);
+                                });
+                            }
+                        });
+                }
+            }
         </script>
     @endpush
 @endsection

@@ -132,6 +132,19 @@ Route::middleware('auth')->group(function () {
     });
 });
 
+// In routes/web.php
+Route::middleware('auth')->post('/admin/get-location-depths', function (Request $request) {
+    $location = \App\Models\WarehouseLocation::where('location_code', $request->location_code)->first();
+    $inventory = \App\Models\Inventory::where('warehouse_location_id', $location->id)
+        ->where('batch_id', $request->batch_id)
+        ->first();
+
+    return response()->json([
+        'depths' => $inventory ? ($inventory->depth_positions ?: []) : [],
+        'batch_number' => $inventory ? $inventory->batch->batch_number : null
+    ]);
+})->name('admin.get.location.depths');
+
 Route::post('/test-inbound', function (Request $request) {
     return response()->json(['success' => true, 'data' => $request->all()]);
 });
