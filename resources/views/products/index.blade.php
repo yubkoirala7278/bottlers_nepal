@@ -51,7 +51,7 @@
     </table>
 </div>
 
-<div class="pagination">
+<div class="pagination-container" style="margin-top: 2rem; text-align: center;">
     {{ $products->links() }}
 </div>
 @endsection

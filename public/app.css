@@ -237,26 +237,60 @@ textarea:focus {
 }
 
 /* Pagination */
+.pagination-container {
+    padding: 2rem 1rem 1rem;
+    background: white;
+    border-radius: 0 0 12px 12px;
+    margin-top: -1px;
+}
+
 .pagination {
     display: flex;
     justify-content: center;
-    gap: 0.5rem;
-    margin-top: 2rem;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
 }
 
 .pagination a,
 .pagination span {
-    padding: 0.5rem 1rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
     text-decoration: none;
+    color: #667eea;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+}
+
+.pagination a:hover {
+    background: #f8f9fa;
+    border-color: #667eea;
     color: #667eea;
 }
 
 .pagination .active span {
-    background: #667eea;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border-color: #667eea;
+    font-weight: 600;
+}
+
+.pagination span.disabled {
+    color: #adb5bd;
+    border-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.pagination span.disabled:hover {
+    background: transparent;
+    border-color: #e9ecef;
 }
 
 /* Responsive */
@@ -278,4 +312,7 @@ textarea:focus {
     .form-container {
         padding: 1rem;
     }
+}
+.pagination a, .pagination span{
+    padding: 0 !important;
 }
