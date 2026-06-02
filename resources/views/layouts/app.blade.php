@@ -21,8 +21,9 @@
                     <a href="{{ route('products.index') }}" class="nav-link">Products</a>
                     <a href="{{ route('batches.index') }}" class="nav-link">Batches</a>
                     <a href="{{ route('warehouse.matrix.full') }}" class="nav-link">Full Screen Matrix</a>
-                    <a href="#" class="nav-link">Inbound</a>
-                    <a href="#" class="nav-link">Outbound</a>
+                     <a href="{{ route('admin.reservations') }}" class="nav-link">🔒 Reservations</a>
+                    <a href="{{ route('admin.bulk.inbound') }}" class="nav-link">Bulk Inbound</a>
+    <a href="{{ route('admin.bulk.outbound') }}" class="nav-link">Bulk Outbound</a>
                     <a href="#" class="nav-link">Users</a>
                 @elseif(auth()->user()->isInboundStaff())
                     <a href="{{ route('inbound.index') }}" class="nav-link">Inbound</a>

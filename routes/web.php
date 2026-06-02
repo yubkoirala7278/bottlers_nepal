@@ -62,6 +62,23 @@ Route::middleware('auth')->group(function () {
         Route::get('/reservations', [BulkOperationController::class, 'reservations'])->name('reservations');
         Route::post('/reservations', [BulkOperationController::class, 'storeReservation'])->name('reservations.store');
         Route::delete('/reservations/{id}', [BulkOperationController::class, 'deleteReservation'])->name('reservations.delete');
+        Route::get('/get-batches-by-product/{productId}', function ($productId) {
+            $batches = \App\Models\Batch::where('product_id', $productId)
+                ->orderBy('created_at', 'desc')
+                ->get(['id', 'batch_number', 'production_date']);
+            return response()->json($batches);
+        })->name('get.batches');
+
+        Route::get('/get-reservation/{id}', function ($id) {
+            $reservation = \App\Models\Reservation::with(['warehouseLocation', 'product', 'batch'])->findOrFail($id);
+            return response()->json([
+                'id' => $reservation->id,
+                'location_code' => $reservation->warehouseLocation->location_code,
+                'reservation_type' => $reservation->reservation_type,
+                'product_id' => $reservation->product_id,
+                'batch_id' => $reservation->batch_id,
+            ]);
+        })->name('get.reservation');
     });
 });
 
