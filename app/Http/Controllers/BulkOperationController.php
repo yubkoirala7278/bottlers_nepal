@@ -19,6 +19,7 @@ class BulkOperationController extends Controller
         return view('admin.bulk-inbound', compact('products', 'locations'));
     }
 
+    // Update the processBulkInbound method in BulkOperationController.php
     public function processBulkInbound(Request $request)
     {
         $request->validate([
@@ -33,6 +34,9 @@ class BulkOperationController extends Controller
 
         // Validate space
         if ($location->available_space < $request->quantity) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Not enough space at this location.']);
+            }
             return back()->with('error', 'Not enough space at this location.');
         }
 
@@ -42,7 +46,11 @@ class BulkOperationController extends Controller
             ->first();
 
         if ($existingInventory) {
-            return back()->with('error', 'Cannot mix different batches in the same location.');
+            $message = 'Cannot mix different batches in the same location.';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message]);
+            }
+            return back()->with('error', $message);
         }
 
         DB::beginTransaction();
@@ -55,27 +63,57 @@ class BulkOperationController extends Controller
             $depthPositions = $inventory->depth_positions ?: [];
             $currentFill = $location->current_fill;
 
+            // DEPTH-FIRST PLACEMENT
+            // Places items from highest depth number down to lowest
+            // Example: If location has max_depth=50 and current_fill=25
+            // New items will be placed at depths: 25, 24, 23, 22... (as we go down)
+            // This ensures the lowest depth (1) is filled last
+
             for ($i = 0; $i < $request->quantity; $i++) {
+                // Calculate next available depth from the top (highest number)
                 $newDepth = $location->max_depth - $currentFill - $i;
                 if ($newDepth >= 1) {
                     $depthPositions[] = $newDepth;
                 }
             }
 
+            // Sort depths in descending order (highest first) for LIFO picking later
+            rsort($depthPositions);
+
             $inventory->quantity = ($inventory->quantity ?: 0) + $request->quantity;
             $inventory->depth_positions = $depthPositions;
             $inventory->save();
 
+            // Update location fill level
             $location->current_fill += $request->quantity;
             $location->save();
 
             DB::commit();
 
-            return redirect()->route('admin.bulk.inbound')
-                ->with('success', "Successfully added {$request->quantity} items to {$request->location_code}");
+            // Log the placement for debugging
+            \Log::info('Bulk inbound placement', [
+                'location' => $request->location_code,
+                'quantity' => $request->quantity,
+                'previous_fill' => $currentFill,
+                'new_fill' => $location->current_fill,
+                'depths_occupied' => $depthPositions
+            ]);
+
+            $message = "Successfully placed {$request->quantity} items at {$request->location_code} (Depth-first: positions " . implode(', ', array_slice($depthPositions, -$request->quantity)) . ")";
+
+            if ($request->ajax()) {
+                return response()->json(['success' => true, 'message' => $message]);
+            }
+
+            return redirect()->route('admin.bulk.inbound')->with('success', $message);
         } catch (\Exception $e) {
             DB::rollback();
-            return back()->with('error', 'Failed to add items: ' . $e->getMessage());
+            $message = 'Failed to place items: ' . $e->getMessage();
+
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message]);
+            }
+            return back()->with('error', $message);
         }
     }
 
@@ -94,14 +132,18 @@ class BulkOperationController extends Controller
 
         $inventories = Inventory::where('batch_id', $request->batch_id)
             ->with('warehouseLocation')
+            ->where('quantity', '>', 0)
             ->get();
 
         $locations = [];
         foreach ($inventories as $inv) {
+            $depthPositions = $inv->depth_positions ?: [];
             $locations[] = [
                 'location_code' => $inv->warehouseLocation->location_code,
                 'quantity' => $inv->quantity,
                 'max_pick' => $inv->quantity,
+                'depth_positions' => $depthPositions,
+                'next_depth' => !empty($depthPositions) ? max($depthPositions) : 0,
             ];
         }
 

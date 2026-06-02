@@ -22,6 +22,56 @@ Route::middleware('guest')->group(function () {
 
 // Protected routes
 Route::middleware('auth')->group(function () {
+    Route::get('/admin/get-inventory-with-batches', function () {
+        $inventory = \App\Models\Inventory::with(['batch', 'batch.product', 'warehouseLocation'])
+            ->where('quantity', '>', 0)
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'warehouse_location_id' => $item->warehouse_location_id,
+                    'batch_id' => $item->batch_id,
+                    'batch_number' => $item->batch->batch_number,
+                    'product_id' => $item->batch->product_id,
+                    'quantity' => $item->quantity,
+                    'depth_positions' => $item->depth_positions,
+                    'is_reserved' => false,
+                ];
+            });
+
+        // Also get reservations
+        $reservations = \App\Models\Reservation::with(['warehouseLocation', 'product', 'batch'])
+            ->get()
+            ->map(function ($res) {
+                return [
+                    'warehouse_location_id' => $res->warehouse_location_id,
+                    'is_reserved' => true,
+                    'reserved_for' => $res->batch_id ?
+                        $res->batch->product->name . ' ' . $res->batch->product->sku . ' (Batch: ' . $res->batch->batch_number . ')' :
+                        $res->product->name . ' ' . $res->product->sku,
+                ];
+            });
+
+        // Merge inventory and reservations
+        $result = $inventory->toArray();
+        foreach ($reservations as $res) {
+            $existing = false;
+            foreach ($result as &$inv) {
+                if ($inv['warehouse_location_id'] == $res['warehouse_location_id']) {
+                    $existing = true;
+                    break;
+                }
+            }
+            if (!$existing) {
+                $result[] = $res;
+            }
+        }
+
+        return response()->json($result);
+    })->name('admin.get.inventory.with.batches');
+    Route::get('/admin/get-all-locations', function () {
+        return response()->json(\App\Models\WarehouseLocation::all());
+    })->name('admin.get.all.locations');
+
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
