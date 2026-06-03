@@ -1,538 +1,628 @@
 {{-- resources/views/warehouse/matrix-full.blade.php --}}
-@extends('layouts.matrix-layout')
+{{-- Self-contained: no CDN, no external assets, no layout dependency --}}
+<!DOCTYPE html>
+<html lang="en">
 
-@section('title', 'Live Warehouse Matrix')
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Bottlers Nepal WMS - Live Warehouse Matrix</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-@section('content')
-<style>
-    .matrix-container {
-        padding: 1rem;
-        min-width: 100%;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .matrix-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding: 0.5rem;
-        background: rgba(255,255,255,0.05);
-        border-radius: 12px;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .title h1 {
-        font-size: 1.25rem;
-        margin-bottom: 0.25rem;
-    }
-    
-    .title p {
-        font-size: 0.75rem;
-        opacity: 0.7;
-    }
-    
-    .stats {
-        display: flex;
-        gap: 1rem;
-    }
-    
-    .stat {
-        background: rgba(255,255,255,0.1);
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        text-align: center;
-    }
-    
-    .stat-value {
-        font-size: 1.25rem;
-        font-weight: bold;
-    }
-    
-    .stat-label {
-        font-size: 0.7rem;
-        opacity: 0.7;
-    }
-    
-    .refresh-control {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-    
-    .refresh-btn {
-        background: #4caf50;
-        border: none;
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 0.875rem;
-        transition: all 0.3s;
-    }
-    
-    .refresh-btn:hover {
-        background: #45a049;
-        transform: scale(1.05);
-    }
-    
-    .auto-refresh {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-size: 0.75rem;
-    }
-    
-    .auto-refresh input {
-        width: 40px;
-        padding: 0.25rem;
-        border-radius: 4px;
-        border: none;
-        text-align: center;
-    }
-    
-    .last-update {
-        font-size: 0.7rem;
-        opacity: 0.7;
-    }
-    
-    .matrix-scroll {
-        overflow-x: auto;
-        flex: 1;
-        background: rgba(255,255,255,0.05);
-        border-radius: 12px;
-        padding: 1rem;
-    }
-    
-    .matrix-table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 800px;
-    }
-    
-    .matrix-table th,
-    .matrix-table td {
-        border: 1px solid rgba(255,255,255,0.1);
-        padding: 12px;
-        text-align: center;
-        vertical-align: middle;
-        transition: all 0.3s ease;
-    }
-    
-    .matrix-table th {
-        background: rgba(0,0,0,0.3);
-        font-weight: 600;
-        position: sticky;
-        top: 0;
-        z-index: 10;
-    }
-    
-    .location-cell {
-        cursor: pointer;
-        transition: transform 0.2s, box-shadow 0.2s;
-        position: relative;
-    }
-    
-    .location-cell:hover {
-        transform: scale(1.02);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        z-index: 20;
-    }
-    
-    .cell-content {
-        font-size: 0.75rem;
-    }
-    
-    .cell-content strong {
-        display: block;
-        font-size: 0.875rem;
-        margin-bottom: 4px;
-    }
-    
-    .empty-cell {
-        background: rgba(255,255,255,0.05);
-    }
-    
-    .reserved-cell {
-        background: rgba(255,152,0,0.2);
-        border: 2px solid #ff9800;
-    }
-    
-    .progress-bar {
-        background: rgba(0,0,0,0.3);
-        border-radius: 10px;
-        overflow: hidden;
-        margin-top: 5px;
-        height: 4px;
-    }
-    
-    .progress-fill {
-            background: #4caf50;
-        height: 100%;
-        transition: width 0.3s;
-    }
-    
-    .loading-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0,0,0,0.8);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-        display: none;
-    }
-    
-    .spinner {
-        width: 50px;
-        height: 50px;
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #667eea;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    
-    .depth-tooltip {
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0,0,0,0.9);
-        color: white;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-size: 0.7rem;
-        white-space: nowrap;
-        pointer-events: none;
-        z-index: 30;
-        display: none;
-    }
-    
-    .location-cell:hover .depth-tooltip {
-        display: block;
-    }
-    
-    @keyframes pulse {
-        0%, 100% {
-            opacity: 1;
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
         }
-        50% {
-            opacity: 0.5;
-        }
-    }
-    
-    .updating {
-        animation: pulse 1s ease-in-out;
-    }
-    
-    @media (max-width: 768px) {
+
         .matrix-container {
-            padding: 0.5rem;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            box-sizing: border-box;
+            overflow: hidden;
         }
-        
-        .matrix-table th,
-        .matrix-table td {
-            padding: 6px;
+
+        /* Header */
+        .matrix-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .title h1 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+        }
+
+        .title p {
             font-size: 0.7rem;
+            opacity: 0.6;
         }
-        
-        .cell-content {
+
+        /* Stats */
+        .stats {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.4rem 0.85rem;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 70px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
             font-size: 0.65rem;
+            opacity: 0.65;
         }
-        
-        .cell-content strong {
+
+        /* Controls */
+        .refresh-control {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
             font-size: 0.75rem;
         }
-        
-        .stats {
-            gap: 0.5rem;
-        }
-        
-        .stat {
-            padding: 0.25rem 0.5rem;
-        }
-        
-        .stat-value {
-            font-size: 1rem;
-        }
-    }
-</style>
 
-<div class="matrix-container">
-    <div class="matrix-header">
-        <div class="title">
-            <h1>🏭 Bottlers Nepal - Live Warehouse Matrix</h1>
-            <p>Real-time inventory visualization | Depth-first storage mapping</p>
-        </div>
-        
-        <div class="stats">
-            <div class="stat">
-                <div class="stat-value" id="totalLocations">0</div>
-                <div class="stat-label">Total Locations</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="occupiedLocations">0</div>
-                <div class="stat-label">Occupied</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="totalItems">0</div>
-                <div class="stat-label">Total Items</div>
-            </div>
-            <div class="stat">
-                <div class="stat-value" id="fillRate">0%</div>
-                <div class="stat-label">Fill Rate</div>
-            </div>
-        </div>
-        
-        <div class="refresh-control">
-            <div class="auto-refresh">
-                <span>🔄 Auto</span>
-                <input type="number" id="refreshInterval" value="10" min="3" max="60" step="1">
-                <span>sec</span>
-            </div>
-            <button class="refresh-btn" id="manualRefresh">⟳ Refresh Now</button>
-            <div class="last-update" id="lastUpdate">Last update: Just now</div>
-        </div>
-    </div>
-    
-    <div class="matrix-scroll">
-        <div id="matrixContent">
-            <div style="text-align: center; padding: 2rem;">
-                <div class="spinner"></div>
-                <p style="margin-top: 1rem;">Loading warehouse matrix...</p>
-            </div>
-        </div>
-    </div>
-</div>
+        .auto-refresh input {
+            width: 42px;
+            padding: 0.25rem;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            text-align: center;
+            font-size: 0.75rem;
+        }
 
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-</div>
+        .btn {
+            border: none;
+            color: white;
+            padding: 0.45rem 0.9rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: filter 0.2s, transform 0.2s;
+        }
 
-@push('scripts')
-<script>
-    let autoRefreshTimer = null;
-    let currentData = null;
-    let levels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-    let heights = [6, 5, 4, 3, 2, 1];
-    
-    function showLoading() {
-        document.getElementById('loadingOverlay').style.display = 'flex';
-    }
-    
-    function hideLoading() {
-        document.getElementById('loadingOverlay').style.display = 'none';
-    }
-    
-    function updateLastUpdateTime() {
-        const now = new Date();
-        const timeString = now.toLocaleTimeString();
-        document.getElementById('lastUpdate').innerHTML = `Last update: ${timeString}`;
-    }
-    
-    function calculateStats(data) {
-        let totalLocations = 0;
-        let occupiedLocations = 0;
-        let totalItems = 0;
-        let totalCapacity = 0;
-        
-        for (const [code, location] of Object.entries(data)) {
-            totalLocations++;
-            totalCapacity += 50; // Each location has max depth 50
-            
-            if (location && location.quantity && location.quantity > 0) {
-                occupiedLocations++;
-                totalItems += location.quantity;
+        .btn:hover {
+            filter: brightness(1.2);
+            transform: scale(1.04);
+        }
+
+        .btn-green {
+            background: #4caf50;
+        }
+
+        .btn-purple {
+            background: #667eea;
+        }
+
+        .last-update {
+            font-size: 0.65rem;
+            opacity: 0.6;
+            white-space: nowrap;
+        }
+
+        /* Matrix scroll area */
+        .matrix-scroll {
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 0.75rem;
+        }
+
+        /* Table */
+        .matrix-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 820px;
+        }
+
+        .matrix-table th,
+        .matrix-table td {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        /* Row header sticky left */
+        .matrix-table tbody th {
+            background: rgba(0, 0, 0, 0.4);
+            font-weight: 600;
+            font-size: 0.8rem;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            white-space: nowrap;
+            min-width: 80px;
+        }
+
+        /* Column labels in tfoot sticky bottom */
+        .matrix-table tfoot th {
+            background: rgba(0, 0, 0, 0.5);
+            font-weight: 700;
+            font-size: 0.85rem;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+            letter-spacing: 0.05em;
+        }
+
+        /* Hide thead - labels shown only in tfoot */
+        .matrix-table thead {
+            display: none;
+        }
+
+        /* Cells */
+        .location-cell {
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            position: relative;
+            min-width: 90px;
+        }
+
+        .location-cell:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+            z-index: 20;
+        }
+
+        .cell-content {
+            font-size: 0.72rem;
+            line-height: 1.4;
+        }
+
+        .cell-content strong {
+            display: block;
+            font-size: 0.82rem;
+            margin-bottom: 3px;
+        }
+
+        .empty-cell {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .reserved-cell {
+            background: rgba(255, 152, 0, 0.18) !important;
+            border: 2px solid #ff9800 !important;
+        }
+
+        .progress-bar {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+            height: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.35);
+            transition: width 0.3s;
+        }
+
+        /* Tooltip */
+        .depth-tooltip {
+            position: absolute;
+            bottom: calc(100% + 4px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.92);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.68rem;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 30;
+            display: none;
+        }
+
+        .location-cell:hover .depth-tooltip {
+            display: block;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .loading-overlay.visible {
+            display: flex;
+        }
+
+        /* Spinner */
+        .spinner {
+            width: 46px;
+            height: 46px;
+            border: 4px solid rgba(255, 255, 255, 0.15);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
-        
-        const fillRate = totalCapacity > 0 ? (totalItems / totalCapacity * 100).toFixed(1) : 0;
-        
-        document.getElementById('totalLocations').textContent = totalLocations;
-        document.getElementById('occupiedLocations').textContent = occupiedLocations;
-        document.getElementById('totalItems').textContent = totalItems;
-        document.getElementById('fillRate').textContent = fillRate + '%';
-    }
-    
-    function renderMatrix(data) {
-        let html = `
-            <table class="matrix-table">
-                <thead>
-                    <tr>
-                        <th>Location</th>
-                        ${levels.map(level => `<th>${level}</th>`).join('')}
-                    </tr>
-                </thead>
-                <tbody>
-        `;
-        
-        for (const height of heights) {
-            html += `<tr>
-                <th style="background: rgba(0,0,0,0.3);">Height ${height}</th>`;
-            
-            for (const level of levels) {
-                const locationCode = level + height;
-                const location = data[locationCode];
-                
-                let cellClass = '';
-                let bgColor = 'rgba(255,255,255,0.05)';
-                let content = '';
-                let tooltip = '';
-                
-                if (location) {
-                    if (location.product_name && location.quantity > 0) {
-                        bgColor = location.color_code || '#4caf50';
-                        const fillPercentage = (location.quantity / location.max_depth) * 100;
-                        content = `
-                            <div class="cell-content">
-                                <strong>${location.product_name}</strong>
-                                <div style="font-size:0.7rem">${location.sku}</div>
-                                <div style="font-size:0.65rem">Batch: ${location.batch_number}</div>
-                                <div style="font-size:0.7rem; font-weight:bold;">${location.quantity}/${location.max_depth}</div>
-                                <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${fillPercentage}%; background: rgba(255,255,255,0.3);"></div>
-                                </div>
-                            </div>
-                        `;
-                        tooltip = `Depth positions: 1-${location.quantity} occupied`;
-                    } else if (location.is_reserved) {
-                        cellClass = 'reserved-cell';
-                        content = `
-                            <div class="cell-content">
-                                <strong>🔒 RESERVED</strong>
-                                <div style="font-size:0.65rem">${location.reserved_for || 'Unknown'}</div>
-                                <div>0/50</div>
-                            </div>
-                        `;
-                        tooltip = 'This location is reserved';
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.45;
+            }
+        }
+
+        .updating {
+            animation: pulse 0.9s ease-in-out;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .matrix-container {
+                padding: 0.5rem;
+            }
+
+            .matrix-table th,
+            .matrix-table td {
+                padding: 5px 4px;
+                font-size: 0.65rem;
+            }
+
+            .cell-content {
+                font-size: 0.6rem;
+            }
+
+            .cell-content strong {
+                font-size: 0.7rem;
+            }
+
+            .stats {
+                gap: 0.4rem;
+            }
+
+            .stat {
+                padding: 0.2rem 0.5rem;
+            }
+
+            .stat-value {
+                font-size: 0.9rem;
+            }
+
+            .title h1 {
+                font-size: 0.95rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="matrix-container">
+
+        <div class="matrix-header">
+            <div class="title">
+                <h1>🏭 Bottlers Nepal — Live Warehouse Matrix</h1>
+                <p>Real-time inventory visualization | Depth-first storage mapping</p>
+            </div>
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="totalLocations">—</div>
+                    <div class="stat-label">Total Locations</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="occupiedLocations">—</div>
+                    <div class="stat-label">Occupied</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="totalItems">—</div>
+                    <div class="stat-label">Total Items</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="fillRate">—</div>
+                    <div class="stat-label">Fill Rate</div>
+                </div>
+            </div>
+
+            <div class="refresh-control">
+                <div class="auto-refresh">
+                    <span>🔄 Auto</span>
+                    <input type="number" id="refreshInterval" value="10" min="3" max="60"
+                        step="1">
+                    <span>sec</span>
+                </div>
+                <button class="btn btn-green" id="manualRefresh">⟳ Refresh Now</button>
+                <button class="btn btn-purple" id="fullscreenBtn">⛶ Fullscreen</button>
+                <div class="last-update" id="lastUpdate">Last update: —</div>
+            </div>
+        </div>
+
+        <div class="matrix-scroll">
+            <div id="matrixContent">
+                <div style="text-align:center; padding:3rem;">
+                    <div class="spinner" style="margin:0 auto;"></div>
+                    <p style="margin-top:1rem; opacity:0.7;">Loading warehouse matrix…</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="opacity:0.8; font-size:0.85rem;">Refreshing…</p>
+    </div>
+
+    <script>
+        const LEVELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+        const HEIGHTS = [6, 5, 4, 3, 2, 1];
+        const CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+        let autoRefreshTimer = null;
+        let currentData = null;
+
+        function showOverlay() {
+            document.getElementById('loadingOverlay').classList.add('visible');
+        }
+
+        function hideOverlay() {
+            document.getElementById('loadingOverlay').classList.remove('visible');
+        }
+
+        function updateLastUpdateTime() {
+            document.getElementById('lastUpdate').textContent =
+                'Last update: ' + new Date().toLocaleTimeString();
+        }
+
+        function calculateStats(data) {
+            let total = 0,
+                occupied = 0,
+                items = 0,
+                capacity = 0;
+            for (const loc of Object.values(data)) {
+                total++;
+                capacity += 50;
+                if (loc && loc.quantity > 0) {
+                    occupied++;
+                    items += loc.quantity;
+                }
+            }
+            const rate = capacity > 0 ? (items / capacity * 100).toFixed(1) : 0;
+            document.getElementById('totalLocations').textContent = total;
+            document.getElementById('occupiedLocations').textContent = occupied;
+            document.getElementById('totalItems').textContent = items;
+            document.getElementById('fillRate').textContent = rate + '%';
+        }
+
+        function renderMatrix(data) {
+            let html = `<table class="matrix-table">
+            <thead><tr>
+                <th>Location</th>
+                ${LEVELS.map(l => `<th>${l}</th>`).join('')}
+            </tr></thead>
+            <tbody>`;
+
+            for (const height of HEIGHTS) {
+                html += `<tr><th>Height ${height}</th>`;
+                for (const level of LEVELS) {
+                    const code = level + height;
+                    const loc = data[code];
+                    let cellClass = '',
+                        bgColor = 'rgba(255,255,255,0.04)',
+                        content = '',
+                        tooltip = '';
+
+                    if (loc) {
+                        if (loc.product_name && loc.quantity > 0) {
+                            bgColor = loc.color_code || '#4caf50';
+                            const pct = ((loc.quantity / loc.max_depth) * 100).toFixed(0);
+                            content = `<div class="cell-content">
+                            <strong>${loc.product_name}</strong>
+                            <div>${loc.sku}</div>
+                            <div style="font-size:0.62rem">Batch: ${loc.batch_number}</div>
+                            <div style="font-weight:700">${loc.quantity}/${loc.max_depth}</div>
+                            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+                        </div>`;
+                            tooltip = `Depth: 1–${loc.quantity} occupied`;
+                        } else if (loc.is_reserved) {
+                            cellClass = 'reserved-cell';
+                            content = `<div class="cell-content">
+                            <strong>🔒 RESERVED</strong>
+                            <div style="font-size:0.62rem">${loc.reserved_for || 'Unknown'}</div>
+                            <div>0/50</div>
+                        </div>`;
+                            tooltip = 'This location is reserved';
+                        } else {
+                            cellClass = 'empty-cell';
+                            content = `<div class="cell-content"><strong>📦 EMPTY</strong><div>0/50</div></div>`;
+                            tooltip = 'Available for storage';
+                        }
                     } else {
-                        cellClass = 'empty-cell';
-                        content = `
-                            <div class="cell-content">
-                                <strong>📦 EMPTY</strong>
-                                <div>0/50</div>
-                            </div>
-                        `;
-                        tooltip = 'Available for storage';
+                        content = `<div class="cell-content"><strong>—</strong><div>N/A</div></div>`;
                     }
-                } else {
-                    content = `
-                        <div class="cell-content">
-                            <strong>---</strong>
-                            <div>N/A</div>
-                        </div>
-                    `;
+
+                    const textColor = bgColor !== 'rgba(255,255,255,0.04)' ? 'white' : '#aaa';
+                    html += `<td class="location-cell ${cellClass}"
+                    style="background:${bgColor}; color:${textColor}"
+                    data-location="${code}">
+                    ${content}
+                    <div class="depth-tooltip">${tooltip}</div>
+                </td>`;
                 }
-                
-                html += `<td class="location-cell ${cellClass}" style="background: ${bgColor}; color: ${bgColor !== 'rgba(255,255,255,0.05)' ? 'white' : '#ccc'}" data-location="${locationCode}">
-                            ${content}
-                            <div class="depth-tooltip">${tooltip}</div>
-                        </td>`;
+                html += `</tr>`;
             }
-            
-            html += `</tr>`;
+
+            html += `</tbody>
+            <tfoot><tr>
+                <th>Location</th>
+                ${LEVELS.map(l => `<th>${l}</th>`).join('')}
+            </tr></tfoot>
+        </table>`;
+
+            document.getElementById('matrixContent').innerHTML = html;
+
+            document.querySelectorAll('.location-cell').forEach(cell => {
+                cell.addEventListener('click', function() {
+                    const code = this.dataset.location;
+                    const loc = data[code];
+                    if (loc && loc.product_name && loc.quantity > 0) {
+                        alert(
+                            `📍 Location: ${code}\n\nProduct : ${loc.product_name}\nSKU     : ${loc.sku}\nBatch   : ${loc.batch_number}\nQty     : ${loc.quantity}/${loc.max_depth}\nFill    : ${(loc.quantity / loc.max_depth * 100).toFixed(1)}%`
+                        );
+                    } else if (loc && loc.is_reserved) {
+                        alert(
+                            `📍 Location: ${code}\n\n🔒 RESERVED\n${loc.reserved_for || 'Unknown reservation'}`
+                        );
+                    } else {
+                        alert(`📍 Location: ${code}\n\n📦 EMPTY — 50 spaces available`);
+                    }
+                });
+            });
         }
-        
-        html += `
-                </tbody>
-            </table>
-        `;
-        
-        document.getElementById('matrixContent').innerHTML = html;
-        
-        // Add click handlers to cells
-        document.querySelectorAll('.location-cell').forEach(cell => {
-            cell.addEventListener('click', function() {
-                const locationCode = this.dataset.location;
-                const location = data[locationCode];
-                if (location && location.product_name) {
-                    alert(`📍 Location: ${locationCode}\n\nProduct: ${location.product_name}\nSKU: ${location.sku}\nBatch: ${location.batch_number}\nQuantity: ${location.quantity}/${location.max_depth}\nFill Rate: ${(location.quantity / location.max_depth * 100).toFixed(1)}%`);
-                } else if (location && location.is_reserved) {
-                    alert(`📍 Location: ${locationCode}\n\n🔒 RESERVED\n${location.reserved_for || 'Unknown reservation'}\nSpace: 0/50 available`);
-                } else {
-                    alert(`📍 Location: ${locationCode}\n\n📦 EMPTY\n50 spaces available for storage`);
+
+        // Native fetch — no axios or CDN required
+        function fetchMatrixData() {
+            return fetch('{{ route('warehouse.matrix.data') }}', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': CSRF,
                 }
+            }).then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
             });
-        });
-    }
-    
-    function fetchMatrixData() {
-        return axios.get('{{ route("warehouse.matrix.data") }}', {
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        });
-    }
-    
-    function updateMatrix() {
-        const matrixContent = document.getElementById('matrixContent');
-        matrixContent.classList.add('updating');
-        
-        fetchMatrixData()
-            .then(response => {
-                currentData = response.data;
-                renderMatrix(currentData);
-                calculateStats(currentData);
-                updateLastUpdateTime();
-            })
-            .catch(error => {
-                console.error('Error fetching matrix data:', error);
-                matrixContent.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: #f44336;">
-                        <strong>❌ Error loading matrix data</strong>
-                        <p style="margin-top: 0.5rem;">${error.message || 'Please check your connection'}</p>
-                        <button onclick="location.reload()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #4caf50; border: none; color: white; border-radius: 8px; cursor: pointer;">Retry</button>
-                    </div>
-                `;
-            })
-            .finally(() => {
-                matrixContent.classList.remove('updating');
-            });
-    }
-    
-    function startAutoRefresh() {
-        if (autoRefreshTimer) {
+        }
+
+        function updateMatrix(isInitial = false) {
+            const content = document.getElementById('matrixContent');
+            isInitial ? showOverlay() : content.classList.add('updating');
+
+            fetchMatrixData()
+                .then(data => {
+                    currentData = data;
+                    renderMatrix(data);
+                    calculateStats(data);
+                    updateLastUpdateTime();
+                })
+                .catch(err => {
+                    console.error('Matrix fetch error:', err);
+                    content.innerHTML = `
+                    <div style="text-align:center; padding:2rem; color:#f44336;">
+                        <div style="font-size:2rem;">❌</div>
+                        <strong>Error loading matrix data</strong>
+                        <p style="margin-top:0.5rem; opacity:0.7;">${err.message || 'Check server connection'}</p>
+                        <button onclick="updateMatrix(true)"
+                            style="margin-top:1rem; padding:0.5rem 1.2rem; background:#4caf50;
+                                   border:none; color:white; border-radius:8px; cursor:pointer; font-size:0.85rem;">
+                            ⟳ Retry
+                        </button>
+                    </div>`;
+                })
+                .finally(() => {
+                    hideOverlay();
+                    content.classList.remove('updating');
+                });
+        }
+
+        function startAutoRefresh() {
             clearInterval(autoRefreshTimer);
+            const ms = Math.max(3, parseInt(document.getElementById('refreshInterval').value) || 10) * 1000;
+            autoRefreshTimer = setInterval(() => updateMatrix(), ms);
         }
-        
-        const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
-        autoRefreshTimer = setInterval(() => {
+
+        // Fullscreen
+        const fsBtn = document.getElementById('fullscreenBtn');
+
+        function syncFullscreenLabel() {
+            fsBtn.textContent = document.fullscreenElement ? '✕ Exit Fullscreen' : '⛶ Fullscreen';
+        }
+
+        fsBtn.addEventListener('click', () => {
+            document.fullscreenElement ?
+                document.exitFullscreen() :
+                document.documentElement.requestFullscreen();
+        });
+
+        document.addEventListener('fullscreenchange', syncFullscreenLabel);
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'F11') {
+                e.preventDefault();
+                fsBtn.click();
+            }
+        });
+
+        document.getElementById('manualRefresh').addEventListener('click', () => {
             updateMatrix();
-        }, interval);
-    }
-    
-    // Event listeners
-    document.getElementById('manualRefresh').addEventListener('click', () => {
-        updateMatrix();
-        startAutoRefresh(); // Reset timer
-    });
-    
-    document.getElementById('refreshInterval').addEventListener('change', () => {
+            startAutoRefresh();
+        });
+
+        document.getElementById('refreshInterval').addEventListener('change', startAutoRefresh);
+
+        window.addEventListener('beforeunload', () => clearInterval(autoRefreshTimer));
+
+        // Boot
+        updateMatrix(true);
         startAutoRefresh();
-    });
-    
-    // Initial load
-    updateMatrix();
-    startAutoRefresh();
-    
-    // Cleanup on page unload
-    window.addEventListener('beforeunload', () => {
-        if (autoRefreshTimer) {
-            clearInterval(autoRefreshTimer);
-        }
-    });
-</script>
-@endpush
-@endsection
+    </script>
+
+</body>
+
+</html>
