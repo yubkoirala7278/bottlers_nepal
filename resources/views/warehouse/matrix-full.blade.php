@@ -15,10 +15,16 @@
             box-sizing: border-box;
         }
 
-        html,
+        html {
+            height: 100%;
+            width: 100%;
+        }
+
         body {
             height: 100%;
             width: 100%;
+            margin: 0;
+            padding: 0;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #1a1a2e;
@@ -27,7 +33,7 @@
 
         .matrix-container {
             width: 100%;
-            height: 100%;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             padding: 1rem;
@@ -149,11 +155,25 @@
             background: rgba(255, 255, 255, 0.03);
             border-radius: 12px;
             padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Table */
+        #matrixContent {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #matrixContent>* {
+            flex: 1;
+            min-height: 0;
+        }
+
         .matrix-table {
             width: 100%;
+            height: 100%;
             border-collapse: collapse;
             min-width: 820px;
         }
