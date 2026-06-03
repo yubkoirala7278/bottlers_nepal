@@ -6,7 +6,6 @@
 @section('content')
     <style>
         .profile-container {
-            max-width: 600px;
             margin: 0 auto;
         }
 
