@@ -10,161 +10,135 @@ use App\Http\Controllers\InboundController;
 use App\Http\Controllers\OutboundController;
 use App\Http\Controllers\BulkOperationController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\AdminController;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+/*
+|--------------------------------------------------------------------------
+| Root Redirect
+|--------------------------------------------------------------------------
+*/
+Route::get('/', fn() => redirect()->route('login'));
 
-// Guest routes
+/*
+|--------------------------------------------------------------------------
+| Guest Routes
+|--------------------------------------------------------------------------
+*/
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-// Protected routes
+/*
+|--------------------------------------------------------------------------
+| Authenticated Routes
+|--------------------------------------------------------------------------
+*/
 Route::middleware('auth')->group(function () {
-    Route::get('/admin/get-inventory-with-batches', function () {
-        $inventory = \App\Models\Inventory::with(['batch', 'batch.product', 'warehouseLocation'])
-            ->where('quantity', '>', 0)
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'warehouse_location_id' => $item->warehouse_location_id,
-                    'batch_id' => $item->batch_id,
-                    'batch_number' => $item->batch->batch_number,
-                    'product_id' => $item->batch->product_id,
-                    'quantity' => $item->quantity,
-                    'depth_positions' => $item->depth_positions,
-                    'is_reserved' => false,
-                ];
-            });
-
-        // Also get reservations
-        $reservations = \App\Models\Reservation::with(['warehouseLocation', 'product', 'batch'])
-            ->get()
-            ->map(function ($res) {
-                return [
-                    'warehouse_location_id' => $res->warehouse_location_id,
-                    'is_reserved' => true,
-                    'reserved_for' => $res->batch_id ?
-                        $res->batch->product->name . ' ' . $res->batch->product->sku . ' (Batch: ' . $res->batch->batch_number . ')' :
-                        $res->product->name . ' ' . $res->product->sku,
-                ];
-            });
-
-        // Merge inventory and reservations
-        $result = $inventory->toArray();
-        foreach ($reservations as $res) {
-            $existing = false;
-            foreach ($result as &$inv) {
-                if ($inv['warehouse_location_id'] == $res['warehouse_location_id']) {
-                    $existing = true;
-                    break;
-                }
-            }
-            if (!$existing) {
-                $result[] = $res;
-            }
-        }
-
-        return response()->json($result);
-    })->name('admin.get.inventory.with.batches');
-    Route::get('/admin/get-all-locations', function () {
-        return response()->json(\App\Models\WarehouseLocation::all());
-    })->name('admin.get.all.locations');
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Warehouse Matrix View
-    Route::get('/warehouse-matrix-full', [WarehouseLocationController::class, 'matrixFull'])
-        ->name('warehouse.matrix.full');
-    Route::get('/warehouse-matrix', [WarehouseLocationController::class, 'matrix'])->name('warehouse.matrix');
-    Route::get('/warehouse-matrix-data', [WarehouseLocationController::class, 'getMatrixData'])->name('warehouse.matrix.data');
-
-    // Product Management (Admin only)
-    Route::resource('products', ProductController::class)->middleware('role:admin');
-
-    // Batch Management (Admin only)
-    Route::resource('batches', BatchController::class)->middleware('role:admin');
-
-    // Inbound Management (Admin and Inbound Staff)
-    Route::middleware('role:admin,inbound_staff')->group(function () {
-        Route::get('/inbound', [InboundController::class, 'index'])->name('inbound.index');
-        Route::post('/inbound/find-place', [InboundController::class, 'findPlace'])->name('inbound.find-place');
-        Route::post('/inbound/store', [InboundController::class, 'store'])->name('inbound.store');
-        Route::post('/inbound/latest-batches', [InboundController::class, 'getLatestBatches'])->name('inbound.latest-batches');
+    /*
+    |----------------------------------------------------------------------
+    | Warehouse Matrix
+    |----------------------------------------------------------------------
+    */
+    Route::prefix('warehouse-matrix')->name('warehouse.matrix')->group(function () {
+        Route::get('/', [WarehouseLocationController::class, 'matrix'])->name('');
+        Route::get('/full', [WarehouseLocationController::class, 'matrixFull'])->name('.full');
+        Route::get('/data', [WarehouseLocationController::class, 'getMatrixData'])->name('.data');
     });
 
-    // Outbound Management (Admin and Outbound Staff)
-    Route::middleware('role:admin,outbound_staff')->group(function () {
-        Route::get('/outbound', [OutboundController::class, 'index'])->name('outbound.index');
-        Route::post('/outbound/oldest-batch', [OutboundController::class, 'getOldestBatch'])->name('outbound.oldest-batch');
-        Route::post('/outbound/pickup', [OutboundController::class, 'pickup'])->name('outbound.pickup');
+    /*
+    |----------------------------------------------------------------------
+    | Profile Management (All Authenticated Users)
+    |----------------------------------------------------------------------
+    */
+    Route::prefix('profile')->name('users.')->group(function () {
+        Route::get('/', [UserController::class, 'profile'])->name('profile');
+        Route::put('/', [UserController::class, 'updateProfile'])->name('profile.update');
+        Route::put('/password', [UserController::class, 'updatePassword'])->name('password.update');
     });
 
-    // Admin Bulk Operations
-    Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/bulk-inbound', [BulkOperationController::class, 'inbound'])->name('bulk.inbound');
-        Route::post('/bulk-inbound', [BulkOperationController::class, 'processBulkInbound'])->name('bulk.inbound.process');
-        Route::get('/bulk-outbound', [BulkOperationController::class, 'outbound'])->name('bulk.outbound');
-        Route::post('/bulk-outbound/locations', [BulkOperationController::class, 'getBatchLocations'])->name('bulk.outbound.locations');
-        Route::post('/bulk-outbound', [BulkOperationController::class, 'processBulkOutbound'])->name('bulk.outbound.process');
-        Route::get('/reservations', [BulkOperationController::class, 'reservations'])->name('reservations');
-        Route::post('/reservations', [BulkOperationController::class, 'storeReservation'])->name('reservations.store');
-        Route::delete('/reservations/{id}', [BulkOperationController::class, 'deleteReservation'])->name('reservations.delete');
-        Route::get('/get-batches-by-product/{productId}', function ($productId) {
-            $batches = \App\Models\Batch::where('product_id', $productId)
-                ->orderBy('created_at', 'desc')
-                ->get(['id', 'batch_number', 'production_date']);
-            return response()->json($batches);
-        })->name('get.batches');
+    /*
+    |----------------------------------------------------------------------
+    | Inbound Management (Admin + Inbound Staff)
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:admin,inbound_staff')
+        ->prefix('inbound')
+        ->name('inbound.')
+        ->group(function () {
+            Route::get('/', [InboundController::class, 'index'])->name('index');
+            Route::post('/find-place', [InboundController::class, 'findPlace'])->name('find-place');
+            Route::post('/store', [InboundController::class, 'store'])->name('store');
+            Route::post('/latest-batches', [InboundController::class, 'getLatestBatches'])->name('latest-batches');
+        });
 
-        Route::get('/get-reservation/{id}', function ($id) {
-            $reservation = \App\Models\Reservation::with(['warehouseLocation', 'product', 'batch'])->findOrFail($id);
-            return response()->json([
-                'id' => $reservation->id,
-                'location_code' => $reservation->warehouseLocation->location_code,
-                'reservation_type' => $reservation->reservation_type,
-                'product_id' => $reservation->product_id,
-                'batch_id' => $reservation->batch_id,
-            ]);
-        })->name('get.reservation');
+    /*
+    |----------------------------------------------------------------------
+    | Outbound Management (Admin + Outbound Staff)
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:admin,outbound_staff')
+        ->prefix('outbound')
+        ->name('outbound.')
+        ->group(function () {
+            Route::get('/', [OutboundController::class, 'index'])->name('index');
+            Route::post('/oldest-batch', [OutboundController::class, 'getOldestBatch'])->name('oldest-batch');
+            Route::post('/pickup', [OutboundController::class, 'pickup'])->name('pickup');
+        });
+
+    /*
+    |----------------------------------------------------------------------
+    | Admin-Only Routes
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:admin')->group(function () {
+
+        // Resource routes
+        Route::resource('products', ProductController::class);
+        Route::resource('batches', BatchController::class);
+
+        // User Management
+        Route::prefix('users')->name('users.')->group(function () {
+            Route::get('/', [UserController::class, 'index'])->name('index');
+            Route::get('/create', [UserController::class, 'create'])->name('create');
+            Route::post('/', [UserController::class, 'store'])->name('store');
+            Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
+            Route::put('/{user}', [UserController::class, 'update'])->name('update');
+            Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
+            Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
+        });
+
+        // Admin API & Bulk Operations
+        Route::prefix('admin')->name('admin.')->group(function () {
+
+            // Inventory & Location Helpers
+            Route::get('/get-inventory-with-batches', [AdminController::class, 'getInventoryWithBatches'])
+                ->name('get.inventory.with.batches');
+            Route::get('/get-all-locations', [AdminController::class, 'getAllLocations'])
+                ->name('get.all.locations');
+            Route::post('/get-location-depths', [AdminController::class, 'getLocationDepths'])
+                ->name('get.location.depths');
+            Route::get('/get-batches-by-product/{productId}', [AdminController::class, 'getBatchesByProduct'])
+                ->name('get.batches');
+
+            // Bulk Inbound
+            Route::get('/bulk-inbound', [BulkOperationController::class, 'inbound'])->name('bulk.inbound');
+            Route::post('/bulk-inbound', [BulkOperationController::class, 'processBulkInbound'])->name('bulk.inbound.process');
+
+            // Bulk Outbound
+            Route::get('/bulk-outbound', [BulkOperationController::class, 'outbound'])->name('bulk.outbound');
+            Route::post('/bulk-outbound/locations', [BulkOperationController::class, 'getBatchLocations'])->name('bulk.outbound.locations');
+            Route::post('/bulk-outbound', [BulkOperationController::class, 'processBulkOutbound'])->name('bulk.outbound.process');
+
+            // Reservations
+            Route::get('/reservations', [BulkOperationController::class, 'reservations'])->name('reservations');
+            Route::post('/reservations', [BulkOperationController::class, 'storeReservation'])->name('reservations.store');
+            Route::delete('/reservations/{id}', [BulkOperationController::class, 'deleteReservation'])->name('reservations.delete');
+            Route::get('/get-reservation/{id}', [AdminController::class, 'getReservation'])->name('get.reservation');
+        });
     });
-});
-
-// In routes/web.php
-Route::middleware('auth')->post('/admin/get-location-depths', function (Request $request) {
-    $location = \App\Models\WarehouseLocation::where('location_code', $request->location_code)->first();
-    $inventory = \App\Models\Inventory::where('warehouse_location_id', $location->id)
-        ->where('batch_id', $request->batch_id)
-        ->first();
-
-    return response()->json([
-        'depths' => $inventory ? ($inventory->depth_positions ?: []) : [],
-        'batch_number' => $inventory ? $inventory->batch->batch_number : null
-    ]);
-})->name('admin.get.location.depths');
-
-Route::post('/test-inbound', function (Request $request) {
-    return response()->json(['success' => true, 'data' => $request->all()]);
-});
-
-// In routes/web.php, add these routes
-Route::middleware('auth')->group(function () {
-    // User Management (Admin only)
-    Route::middleware('role:admin')->prefix('users')->name('users.')->group(function () {
-        Route::get('/', [UserController::class, 'index'])->name('index');
-        Route::get('/create', [UserController::class, 'create'])->name('create');
-        Route::post('/', [UserController::class, 'store'])->name('store');
-        Route::get('/{user}/edit', [UserController::class, 'edit'])->name('edit');
-        Route::put('/{user}', [UserController::class, 'update'])->name('update');
-        Route::delete('/{user}', [UserController::class, 'destroy'])->name('destroy');
-        Route::post('/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('toggle-status');
-    });
-    
-    // Profile Management (All authenticated users)
-    Route::get('/profile', [UserController::class, 'profile'])->name('users.profile');
-    Route::put('/profile', [UserController::class, 'updateProfile'])->name('users.profile.update');
-    Route::put('/profile/password', [UserController::class, 'updatePassword'])->name('users.password.update');
 });
