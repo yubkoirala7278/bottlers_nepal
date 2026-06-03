@@ -170,7 +170,15 @@ class InboundController extends Controller
                 'batch_id' => 'required|exists:batches,id',
                 'location_code' => 'required|exists:warehouse_locations,location_code',
                 'quantity' => 'required|integer|min:1|max:50',
+                'ack_code' => 'required|string|size:6',
             ]);
+            // Verify acknowledgment code format
+            if (!preg_match('/^\d{6}$/', $request->ack_code)) {
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => 'Invalid acknowledgment code format. Must be 6 digits.']);
+                }
+                return back()->with('error', 'Invalid acknowledgment code format.');
+            }
 
             $location = WarehouseLocation::where('location_code', $request->location_code)->first();
             $batch = Batch::find($request->batch_id);
