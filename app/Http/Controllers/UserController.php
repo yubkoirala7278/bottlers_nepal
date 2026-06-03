@@ -97,13 +97,39 @@ class UserController extends Controller
 
         // Update password only if provided
         if ($request->filled('password')) {
+            // Require admin's current password for confirmation
             $request->validate([
                 'password' => 'string|min:8|confirmed',
+                'admin_password' => 'required|string',
+            ], [
+                'admin_password.required' => 'Please enter your password to confirm this password change.',
             ]);
+
+            // Verify admin's password
+            if (!Hash::check($request->admin_password, auth()->user()->password)) {
+                return back()->withErrors(['admin_password' => 'Your password is incorrect.']);
+            }
+
             $updateData['password'] = Hash::make($request->password);
         }
 
         $user->update($updateData);
+
+        // Invalidate user sessions after password change
+        if ($request->filled('password')) {
+            // Delete all active sessions for this user
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            
+            // Log the action for audit purposes
+            \Log::info('User sessions invalidated by admin', [
+                'admin_id' => auth()->id(),
+                'admin_name' => auth()->user()->name,
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'action' => 'password_changed',
+                'timestamp' => now(),
+            ]);
+        }
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');

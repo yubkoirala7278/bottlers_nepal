@@ -145,6 +145,18 @@
             <div class="form-group">
                 <label for="password_confirmation">Confirm New Password</label>
                 <input type="password" id="password_confirmation" name="password_confirmation">
+                @error('password_confirmation')
+                    <div class="error">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label for="admin_password">Your Password (Admin Confirmation)</label>
+                <input type="password" id="admin_password" name="admin_password">
+                <div class="password-hint">Required to confirm password change for security.</div>
+                @error('admin_password')
+                    <div class="error">{{ $message }}</div>
+                @enderror
             </div>
 
             <button type="submit" class="btn-submit">Update User</button>
