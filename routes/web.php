@@ -12,60 +12,21 @@ use App\Http\Controllers\BulkOperationController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminController;
 
-/*
-|--------------------------------------------------------------------------
-| Root Redirect
-|--------------------------------------------------------------------------
-*/
 Route::get('/', fn() => redirect()->route('login'));
 
-/*
-|--------------------------------------------------------------------------
-| Guest Routes
-|--------------------------------------------------------------------------
-*/
+// Guest Routes
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login']);
 });
 
-/*
-|--------------------------------------------------------------------------
-| Authenticated Routes
-|--------------------------------------------------------------------------
-*/
+// Authenticated Routes
 Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    /*
-    |----------------------------------------------------------------------
-    | Warehouse Matrix
-    |----------------------------------------------------------------------
-    */
-    Route::prefix('warehouse-matrix')->name('warehouse.matrix')->group(function () {
-        Route::get('/', [WarehouseLocationController::class, 'matrix'])->name('');
-        Route::get('/full', [WarehouseLocationController::class, 'matrixFull'])->name('.full');
-        Route::get('/data', [WarehouseLocationController::class, 'getMatrixData'])->name('.data');
-    });
-
-    /*
-    |----------------------------------------------------------------------
-    | Profile Management (All Authenticated Users)
-    |----------------------------------------------------------------------
-    */
-    Route::prefix('profile')->name('users.')->group(function () {
-        Route::get('/', [UserController::class, 'profile'])->name('profile');
-        Route::put('/', [UserController::class, 'updateProfile'])->name('profile.update');
-        Route::put('/password', [UserController::class, 'updatePassword'])->name('password.update');
-    });
-
-    /*
-    |----------------------------------------------------------------------
-    | Inbound Management (Admin + Inbound Staff)
-    |----------------------------------------------------------------------
-    */
+    // Inbound Management (Admin + Inbound Staff)
     Route::middleware('role:admin,inbound_staff')
         ->prefix('inbound')
         ->name('inbound.')
@@ -76,11 +37,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/latest-batches', [InboundController::class, 'getLatestBatches'])->name('latest-batches');
         });
 
-    /*
-    |----------------------------------------------------------------------
-    | Outbound Management (Admin + Outbound Staff)
-    |----------------------------------------------------------------------
-    */
+    // Outbound Management (Admin + Outbound Staff)
     Route::middleware('role:admin,outbound_staff')
         ->prefix('outbound')
         ->name('outbound.')
@@ -90,12 +47,20 @@ Route::middleware('auth')->group(function () {
             Route::post('/pickup', [OutboundController::class, 'pickup'])->name('pickup');
         });
 
-    /*
-    |----------------------------------------------------------------------
-    | Admin-Only Routes
-    |----------------------------------------------------------------------
-    */
+    // Admin-Only Routes 
     Route::middleware('role:admin')->group(function () {
+        // Profile Management
+        Route::prefix('profile')->name('users.')->group(function () {
+            Route::get('/', [UserController::class, 'profile'])->name('profile');
+            Route::put('/', [UserController::class, 'updateProfile'])->name('profile.update');
+            Route::put('/password', [UserController::class, 'updatePassword'])->name('password.update');
+        });
+
+        // Warehouse Matrix
+        Route::prefix('warehouse-matrix')->name('warehouse.matrix')->group(function () {
+            Route::get('/full', [WarehouseLocationController::class, 'matrixFull'])->name('.full');
+            Route::get('/data', [WarehouseLocationController::class, 'getMatrixData'])->name('.data');
+        });
 
         // Resource routes
         Route::resource('products', ProductController::class);

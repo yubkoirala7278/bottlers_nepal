@@ -120,9 +120,6 @@
 </head>
 <body>
     <div class="login-container">
-        <div class="logo">
-            🍾
-        </div>
         <h1>Bottlers Nepal WMS</h1>
         
         @if($errors->any())
@@ -145,11 +142,6 @@
             
             <button type="submit" class="btn-login">Login</button>
         </form>
-        
-        <div class="demo-info">
-            <p><strong>Demo Credentials:</strong></p>
-            <p>Admin: <code>admin@bottlersnepal.com</code> / <code>Admin@123</code></p>
-        </div>
     </div>
 </body>
 </html>

@@ -20,26 +20,6 @@ class WarehouseLocationController extends Controller
         return view('warehouse.matrix-full');
     }
 
-    public function matrix()
-    {
-        $levels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
-        $heights = [6, 5, 4, 3, 2, 1];
-
-        $matrix = [];
-        foreach ($levels as $level) {
-            foreach ($heights as $height) {
-                $locationCode = $level . $height;
-                $location = WarehouseLocation::with(['inventory.batch.product', 'reservation'])
-                    ->where('location_code', $locationCode)
-                    ->first();
-
-                $matrix[$level][$height] = $location;
-            }
-        }
-
-        return view('warehouse.matrix', compact('matrix', 'levels', 'heights'));
-    }
-
     public function getMatrixData()
     {
         try {
