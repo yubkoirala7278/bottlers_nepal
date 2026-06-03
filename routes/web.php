@@ -166,4 +166,5 @@ Route::middleware('auth')->group(function () {
     // Profile Management (All authenticated users)
     Route::get('/profile', [UserController::class, 'profile'])->name('users.profile');
     Route::put('/profile', [UserController::class, 'updateProfile'])->name('users.profile.update');
+    Route::put('/profile/password', [UserController::class, 'updatePassword'])->name('users.password.update');
 });

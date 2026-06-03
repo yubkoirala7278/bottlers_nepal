@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -177,10 +178,10 @@ class UserController extends Controller
         return view('users.profile', compact('user'));
     }
 
-    public function updateProfile(Request $request)
+     public function updateProfile(Request $request)
     {
         $user = auth()->user();
-
+        
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => [
@@ -189,30 +190,48 @@ class UserController extends Controller
                 Rule::unique('users')->ignore($user->id),
             ],
         ]);
-
+        
         $user->update([
             'name' => $request->name,
             'email' => $request->email,
         ]);
-
-        // Update password if provided
-        if ($request->filled('current_password') && $request->filled('new_password')) {
-            $request->validate([
-                'current_password' => 'required|string',
-                'new_password' => 'required|string|min:8|confirmed',
-            ]);
-
-            if (!Hash::check($request->current_password, $user->password)) {
-                return back()->with('error', 'Current password is incorrect.');
-            }
-
-            $user->update([
-                'password' => Hash::make($request->new_password),
-            ]);
-
-            return back()->with('success', 'Profile updated successfully. Password changed.');
-        }
-
+        
         return back()->with('success', 'Profile updated successfully.');
+    }
+
+     // Update Password
+    public function updatePassword(Request $request)
+    {
+        $user = auth()->user();
+        
+        $request->validate([
+            'current_password' => 'required|string',
+            'new_password' => 'required|string|min:8|confirmed|different:current_password',
+        ], [
+            'new_password.different' => 'New password cannot be the same as your current password.',
+            'new_password.min' => 'New password must be at least 8 characters.',
+            'new_password.confirmed' => 'New password confirmation does not match.',
+            'current_password.required' => 'Please enter your current password.',
+        ]);
+        
+        // Check current password
+        if (!Hash::check($request->current_password, $user->password)) {
+            return back()->withErrors(['current_password' => 'Current password is incorrect.']);
+        }
+        
+        // Update password
+        $user->update([
+            'password' => Hash::make($request->new_password),
+        ]);
+        
+        // Logout the user
+        Auth::logout();
+        
+        // Invalidate session
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        
+        // Redirect to login page with message
+        return redirect()->route('login')->with('success', 'Password changed successfully! Please login with your new password.');
     }
 }
