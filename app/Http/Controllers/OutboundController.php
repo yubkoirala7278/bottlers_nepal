@@ -24,18 +24,32 @@ class OutboundController extends Controller
                 'product_id' => 'required|exists:products,id',
             ]);
 
-            // Find oldest batch (by production date) for this product that has inventory
+            // Find oldest batch (by production date) for this product that has inventory with quantity > 0
             $oldestBatch = Batch::where('product_id', $request->product_id)
                 ->whereHas('inventory', function ($query) {
-                    $query->where('quantity', '>', 0);
+                    $query->where('quantity', '>', 0);  // Only batches with positive quantity
                 })
                 ->orderBy('production_date', 'asc')
-                ->with(['inventory.warehouseLocation', 'inventory' => function ($query) {
-                    $query->where('quantity', '>', 0);
+                ->with(['inventory' => function ($query) {
+                    $query->where('quantity', '>', 0);  // Only inventory with positive quantity
+                    $query->with('warehouseLocation');
                 }])
                 ->first();
 
             if (!$oldestBatch) {
+                return response()->json([
+                    'found' => false,
+                    'success' => false,
+                    'message' => 'No inventory found for this product.'
+                ]);
+            }
+
+            // Filter inventory to only those with quantity > 0
+            $validInventory = $oldestBatch->inventory->filter(function ($inv) {
+                return $inv->quantity > 0;
+            });
+
+            if ($validInventory->isEmpty()) {
                 return response()->json([
                     'found' => false,
                     'success' => false,
@@ -48,25 +62,22 @@ class OutboundController extends Controller
             $bestDepth = 0;
             $bestInventory = null;
 
-            foreach ($oldestBatch->inventory as $inventory) {
-                if ($inventory->quantity > 0) {
-                    $depthPositions = $inventory->depth_positions ?: [];
-                    if (!empty($depthPositions)) {
-                        $maxDepth = max($depthPositions);
-                        if ($maxDepth > $bestDepth) {
-                            $bestDepth = $maxDepth;
-                            $bestLocation = $inventory->warehouseLocation;
-                            $bestInventory = $inventory;
-                        }
-                    } elseif ($bestLocation === null) {
-                        // Fallback if no depth positions
+            foreach ($validInventory as $inventory) {
+                $depthPositions = $inventory->depth_positions ?: [];
+                if (!empty($depthPositions)) {
+                    $maxDepth = max($depthPositions);
+                    if ($maxDepth > $bestDepth) {
+                        $bestDepth = $maxDepth;
                         $bestLocation = $inventory->warehouseLocation;
                         $bestInventory = $inventory;
                     }
+                } elseif ($bestLocation === null) {
+                    $bestLocation = $inventory->warehouseLocation;
+                    $bestInventory = $inventory;
                 }
             }
 
-            if (!$bestLocation) {
+            if (!$bestLocation || !$bestInventory || $bestInventory->quantity <= 0) {
                 return response()->json([
                     'found' => false,
                     'success' => false,
@@ -90,7 +101,7 @@ class OutboundController extends Controller
                     'max_pick' => $bestInventory->quantity,
                     'next_depth' => $bestDepth,
                 ],
-                'total_quantity' => $oldestBatch->inventory->sum('quantity'),
+                'total_quantity' => $validInventory->sum('quantity'),  // Sum only positive quantities
             ]);
         } catch (\Exception $e) {
             \Log::error('Get oldest batch error: ' . $e->getMessage());
