@@ -15,9 +15,9 @@ class DashboardController extends Controller
         if ($user->isAdmin()) {
             return view('admin.dashboard');
         } elseif ($user->isInboundStaff()) {
-            return view('inbound.dashboard');
+            return redirect()->route('inbound.index');
         } elseif ($user->isOutboundStaff()) {
-            return view('outbound.dashboard');
+            return redirect()->route('outbound.index');
         }
 
         return view('dashboard');

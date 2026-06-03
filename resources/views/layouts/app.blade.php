@@ -15,29 +15,20 @@
     @auth
         <nav class="navbar">
             <div class="navbar-container">
-                <a href="{{ route('dashboard') }}" class="navbar-brand">
-                    🍾 Bottlers Nepal WMS
-                </a>
                 <div class="navbar-menu">
                     @if (auth()->user()->isAdmin())
+                        <a href="{{ route('dashboard') }}" class="nav-link">Home</a>
                         <a href="{{ route('products.index') }}" class="nav-link">Products</a>
                         <a href="{{ route('batches.index') }}" class="nav-link">Batches</a>
-                        <a href="{{ route('warehouse.matrix.full') }}" class="nav-link">Full Screen Matrix</a>
-                        <a href="{{ route('admin.reservations') }}" class="nav-link">🔒 Reservations</a>
+                        <a href="{{ route('admin.reservations') }}" class="nav-link">Reservations</a>
                         <a href="{{ route('admin.bulk.inbound') }}" class="nav-link">Bulk Inbound</a>
                         <a href="{{ route('admin.bulk.outbound') }}" class="nav-link">Bulk Outbound</a>
-                        <a href="{{ route('users.index') }}" class="nav-link">👥 Users</a>
-                        <a href="{{ route('users.profile') }}" class="nav-link">👤 Profile</a>
-                    @elseif(auth()->user()->isInboundStaff())
-                        <a href="{{ route('inbound.index') }}" class="nav-link">Inbound</a>
-                        <a href="{{ route('warehouse.matrix') }}" class="nav-link">Warehouse Map</a>
-                    @elseif(auth()->user()->isOutboundStaff())
-                        <a href="{{ route('outbound.index') }}" class="nav-link">Outbound</a>
-                        <a href="{{ route('warehouse.matrix') }}" class="nav-link">Warehouse Map</a>
+                        <a href="{{ route('users.index') }}" class="nav-link">Users</a>
+                        <a href="{{ route('users.profile') }}" class="nav-link">Profile</a>
+                        <a href="{{ route('warehouse.matrix.full') }}" class="nav-link">Matrix</a>
                     @endif
                     <div class="user-info">
                         <span class="user-role">{{ ucfirst(str_replace('_', ' ', auth()->user()->role)) }}</span>
-                        <span>{{ auth()->user()->name }}</span>
                         <form method="POST" action="{{ route('logout') }}" style="display: inline;">
                             @csrf
                             <button type="submit" class="logout-btn">Logout</button>
