@@ -59,17 +59,18 @@ class InboundController extends Controller
 
             // Define allowed heights based on volume
             $allowedHeights = [];
-            $excludedHeights = [];
             $priorityHeights = [];
 
             if (in_array($volume, [175, 250])) {
                 // 175ml and 250ml: only height 1 & 2
+                // Priority: height 2 first, then height 1
                 $allowedHeights = [1, 2];
-                $priorityHeights = [2, 1]; // Height 2 first, then 1
+                $priorityHeights = [2, 1];
             } elseif (in_array($volume, [1000, 1500])) {
-                // 1000ml and 1500ml: only height 1 and 6
+                // 1000ml and 1500ml: only height 6 and 1
+                // Priority: height 6 FIRST, then height 1
                 $allowedHeights = [1, 6];
-                $priorityHeights = [1, 6]; // Height 1 first, then 6
+                $priorityHeights = [6, 1];  // Height 6 first, then height 1
             } elseif ($volume == 2250) {
                 // 2250ml: height 1 to 5 (exclude height 6)
                 $allowedHeights = [1, 2, 3, 4, 5];
@@ -113,7 +114,12 @@ class InboundController extends Controller
 
             if ($reservedForBatch && $reservedForBatch->warehouseLocation) {
                 $location = $reservedForBatch->warehouseLocation;
-                if ($location->available_space > 0 && !$location->inventory()->exists()) {
+                // Allow placement if location is empty OR has same batch
+                $hasSameBatch = Inventory::where('warehouse_location_id', $location->id)
+                    ->where('batch_id', $batchId)
+                    ->exists();
+
+                if ($location->available_space > 0 && ($location->current_fill == 0 || $hasSameBatch)) {
                     // Check if reserved location height is allowed and not A1
                     if (in_array($location->height, $allowedHeights) && $location->location_code !== 'A1') {
                         return response()->json([
@@ -137,7 +143,14 @@ class InboundController extends Controller
 
             if ($reservedForProduct && $reservedForProduct->warehouseLocation) {
                 $location = $reservedForProduct->warehouseLocation;
-                if ($location->available_space > 0 && !$location->inventory()->exists()) {
+                // Allow placement if location is empty OR has same product batch
+                $hasSameProductBatch = Inventory::where('warehouse_location_id', $location->id)
+                    ->whereHas('batch', function ($q) use ($productId) {
+                        $q->where('product_id', $productId);
+                    })
+                    ->exists();
+
+                if ($location->available_space > 0 && ($location->current_fill == 0 || $hasSameProductBatch)) {
                     // Check if reserved location height is allowed and not A1
                     if (in_array($location->height, $allowedHeights) && $location->location_code !== 'A1') {
                         return response()->json([
@@ -184,7 +197,7 @@ class InboundController extends Controller
             }
 
             // Check partially filled locations that might have space for same batch
-            // Also apply height restrictions
+            // Also apply height restrictions with priority
             $partialLocation = null;
 
             foreach ($priorityHeights as $priorityHeight) {

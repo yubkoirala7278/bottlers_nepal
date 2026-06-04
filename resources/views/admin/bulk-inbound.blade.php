@@ -550,6 +550,8 @@
                     const availableSpace = maxDepth - currentFill;
 
                     const inventoryAtLocation = inventoryData.find(inv => inv.warehouse_location_id === locationId);
+                    const reservationAtLocation = inventoryData.find(inv => inv.warehouse_location_id === locationId &&
+                        inv.is_reserved === true);
 
                     let statusClass = '';
                     let statusLabel = '';
@@ -557,6 +559,7 @@
                     let batchInfo = '';
                     let clickHandler = null;
 
+                    // Check if location has inventory
                     if (inventoryAtLocation && inventoryAtLocation.quantity > 0 && !inventoryAtLocation.is_reserved) {
                         const inventoryBatchId = inventoryAtLocation.batch_id;
                         const inventoryBatchNumber = inventoryAtLocation.batch_number;
@@ -571,16 +574,56 @@
                                 maxDepth, inventoryBatchNumber);
                         } else {
                             statusClass = 'different-batch';
-                            statusLabel = 'Different';
+                            statusLabel = 'Different Batch';
                             canSelect = false;
                             batchInfo = `Has: ${inventoryBatchNumber}`;
                         }
-                    } else if (inventoryAtLocation && inventoryAtLocation.is_reserved) {
-                        statusClass = 'reserved';
-                        statusLabel = 'Reserved';
-                        canSelect = false;
-                        batchInfo = 'Reserved location';
-                    } else {
+                    }
+                    // Check if location is reserved
+                    else if (reservationAtLocation && reservationAtLocation.is_reserved) {
+                        const reservedBatchId = reservationAtLocation.reserved_batch_id;
+                        const reservedProductId = reservationAtLocation.reserved_product_id;
+                        const reservedBatchNumber = reservationAtLocation.reserved_batch_number;
+
+                        // If reservation is for the same batch AND same product, allow placement
+                        if (reservedBatchId === selectedBatchId && reservedProductId === selectedProductId) {
+                            statusClass = 'same-batch';
+                            statusLabel = 'Reserved for this batch';
+                            canSelect = true;
+                            batchInfo = `Reserved for this batch | ${availableSpace}/${maxDepth} spaces`;
+                            clickHandler = () => selectLocation(locationCode, availableSpace, true, 0, maxDepth,
+                                reservedBatchNumber);
+                        }
+                        // If reservation is for a different batch, block
+                        else if (reservedBatchId && reservedBatchId !== selectedBatchId) {
+                            statusClass = 'reserved';
+                            statusLabel = 'Reserved - Different';
+                            canSelect = false;
+                            batchInfo = `Reserved for batch: ${reservedBatchNumber}`;
+                        }
+                        // If reservation is product-only and same product, allow placement
+                        else if (reservedProductId === selectedProductId && !reservedBatchId) {
+                            statusClass = 'same-batch';
+                            statusLabel = 'Reserved for product';
+                            canSelect = true;
+                            batchInfo = `Reserved for this product | ${availableSpace}/${maxDepth} spaces`;
+                            clickHandler = () => selectLocation(locationCode, availableSpace, true, 0, maxDepth, null);
+                        }
+                        // If reservation is for a different product, block
+                        else if (reservedProductId && reservedProductId !== selectedProductId) {
+                            statusClass = 'reserved';
+                            statusLabel = 'Reserved - Different';
+                            canSelect = false;
+                            batchInfo = `Reserved for different product`;
+                        } else {
+                            statusClass = 'reserved';
+                            statusLabel = 'Reserved';
+                            canSelect = false;
+                            batchInfo = 'Reserved location';
+                        }
+                    }
+                    // Empty location
+                    else {
                         statusClass = 'empty';
                         statusLabel = 'Empty';
                         canSelect = true;
@@ -591,11 +634,11 @@
                     const card = document.createElement('div');
                     card.className = `location-card ${statusClass}`;
                     card.innerHTML = `
-                <div class="location-code">${locationCode}</div>
-                <div class="location-fill">${currentFill}/${maxDepth}</div>
-                <div class="location-batch">${batchInfo}</div>
-                <span class="status-text ${statusClass}">${statusLabel}</span>
-            `;
+            <div class="location-code">${locationCode}</div>
+            <div class="location-fill">${currentFill}/${maxDepth}</div>
+            <div class="location-batch">${batchInfo}</div>
+            <span class="status-text ${statusClass}">${statusLabel}</span>
+        `;
 
                     if (canSelect && clickHandler) {
                         card.style.cursor = 'pointer';

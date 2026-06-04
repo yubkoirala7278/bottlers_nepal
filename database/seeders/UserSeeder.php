@@ -13,8 +13,8 @@ class UserSeeder extends Seeder
         // Create inbound staff user
         User::create([
             'name' => 'Inbound Staff',
-            'email' => 'inbound@bottlersnepal.com',
-            'password' => Hash::make('Inbound@123'),
+            'email' => 'inbound@inbound.com',
+            'password' => Hash::make('password'),
             'role' => 'inbound_staff',
             'is_active' => true,
         ]);
@@ -22,8 +22,8 @@ class UserSeeder extends Seeder
         // Create outbound staff user
         User::create([
             'name' => 'Outbound Staff',
-            'email' => 'outbound@bottlersnepal.com',
-            'password' => Hash::make('Outbound@123'),
+            'email' => 'outbound@outbound.com',
+            'password' => Hash::make('password'),
             'role' => 'outbound_staff',
             'is_active' => true,
         ]);

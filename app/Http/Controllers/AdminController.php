@@ -19,38 +19,50 @@ class AdminController extends Controller
      */
     public function getInventoryWithBatches(): JsonResponse
     {
-        $inventory = Inventory::with(['batch', 'batch.product', 'warehouseLocation'])
+        $inventory = \App\Models\Inventory::with(['batch', 'batch.product', 'warehouseLocation'])
             ->where('quantity', '>', 0)
             ->get()
-            ->map(fn($item) => [
-                'warehouse_location_id' => $item->warehouse_location_id,
-                'batch_id'              => $item->batch_id,
-                'batch_number'          => $item->batch->batch_number,
-                'product_id'            => $item->batch->product_id,
-                'quantity'              => $item->quantity,
-                'depth_positions'       => $item->depth_positions,
-                'is_reserved'           => false,
-            ]);
+            ->map(function ($item) {
+                return [
+                    'warehouse_location_id' => $item->warehouse_location_id,
+                    'batch_id' => $item->batch_id,
+                    'batch_number' => $item->batch->batch_number,
+                    'product_id' => $item->batch->product_id,
+                    'quantity' => $item->quantity,
+                    'depth_positions' => $item->depth_positions,
+                    'is_reserved' => false,
+                ];
+            });
 
-        $reservations = Reservation::with(['warehouseLocation', 'product', 'batch'])
+        // Get reservations with batch and product details
+        $reservations = \App\Models\Reservation::with(['warehouseLocation', 'product', 'batch'])
             ->get()
-            ->map(fn($res) => [
-                'warehouse_location_id' => $res->warehouse_location_id,
-                'is_reserved'           => true,
-                'reserved_for'          => $res->batch_id
-                    ? $res->batch->product->name . ' ' . $res->batch->product->sku . ' (Batch: ' . $res->batch->batch_number . ')'
-                    : $res->product->name . ' ' . $res->product->sku,
-            ]);
+            ->map(function ($res) {
+                return [
+                    'warehouse_location_id' => $res->warehouse_location_id,
+                    'is_reserved' => true,
+                    'reserved_batch_id' => $res->batch_id,
+                    'reserved_product_id' => $res->product_id,
+                    'reserved_batch_number' => $res->batch ? $res->batch->batch_number : null,
+                    'reserved_product_name' => $res->product ? $res->product->name . ' ' . $res->product->sku : null,
+                    'reserved_for' => $res->batch_id ?
+                        $res->batch->product->name . ' ' . $res->batch->product->sku . ' (Batch: ' . $res->batch->batch_number . ')' :
+                        $res->product->name . ' ' . $res->product->sku,
+                ];
+            });
 
-        // Merge: only add a reservation row when no inventory row exists for that location
+        // Merge inventory and reservations
         $result = $inventory->toArray();
-
-        foreach ($reservations as $reservation) {
-            $locationAlreadyPresent = collect($result)
-                ->contains('warehouse_location_id', $reservation['warehouse_location_id']);
-
-            if (!$locationAlreadyPresent) {
-                $result[] = $reservation;
+        foreach ($reservations as $res) {
+            $existing = false;
+            foreach ($result as &$inv) {
+                if ($inv['warehouse_location_id'] == $res['warehouse_location_id']) {
+                    $existing = true;
+                    break;
+                }
+            }
+            if (!$existing) {
+                $result[] = $res;
             }
         }
 

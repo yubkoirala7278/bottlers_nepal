@@ -27,8 +27,8 @@ return new class extends Migration
         // Create default admin user
         DB::table('users')->insert([
             'name' => 'Admin User',
-            'email' => 'admin@bottlersnepal.com',
-            'password' => Hash::make('Admin@123'),
+            'email' => 'admin@admin.com',
+            'password' => Hash::make('password'),
             'role' => 'admin',
             'is_active' => true,
             'created_at' => now(),
