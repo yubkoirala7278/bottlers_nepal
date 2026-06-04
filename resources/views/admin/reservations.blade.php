@@ -403,8 +403,8 @@
 
         <!-- Visual Location Map -->
         <div style="background: white; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-            <h3 style="margin-bottom: 1rem;">🗺️ Warehouse Location Map</h3>
-            <div class="location-map-grid">
+            <h3 style="margin-bottom: 1rem;">Warehouse Location Map</h3>
+            <div class="location-map-grid" id="locationMapGrid">
                 @foreach ($locations as $location)
                     @php
                         $isReserved = isset($reservedLocations[$location->id]);
@@ -417,8 +417,7 @@
                                 : 'Available');
                     @endphp
                     <div class="location-cell-reserve {{ $statusClass }}" data-location="{{ $location->location_code }}"
-                        data-status="{{ $statusClass }}" onclick="selectLocation('{{ $location->location_code }}')"
-                        title="{{ $title }}">
+                        data-status="{{ $statusClass }}" title="{{ $title }}">
                         {{ $location->location_code }}
                     </div>
                 @endforeach
@@ -541,6 +540,44 @@
             const productSelect = document.getElementById('product_id');
             const batchSelect = document.getElementById('batch_id');
 
+            // Make sure selectLocation is defined globally and accessible
+            window.selectLocation = function(locationCode) {
+                console.log('Selecting location:', locationCode);
+                const locationSelect = document.getElementById('location_code');
+                if (locationSelect) {
+                    locationSelect.value = locationCode;
+                    // Trigger change event to highlight selected
+                    const event = new Event('change');
+                    locationSelect.dispatchEvent(event);
+                    // Scroll to form
+                    document.querySelector('.reservation-form').scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    // Optional: Show visual feedback
+                    const selectedElement = document.querySelector(
+                        `.location-cell-reserve[data-location="${locationCode}"]`);
+                    if (selectedElement) {
+                        // Remove highlight from all
+                        document.querySelectorAll('.location-cell-reserve').forEach(el => {
+                            el.style.transform = '';
+                            el.style.border = '';
+                        });
+                        // Highlight selected
+                        selectedElement.style.transform = 'scale(1.05)';
+                        selectedElement.style.border = '3px solid #667eea';
+                        setTimeout(() => {
+                            if (selectedElement) {
+                                selectedElement.style.transform = '';
+                                selectedElement.style.border = '';
+                            }
+                        }, 1000);
+                    }
+                } else {
+                    console.error('Location select element not found');
+                }
+            };
+
             // Filter batches based on selected product
             productSelect.addEventListener('change', function() {
                 const productId = this.value;
@@ -553,6 +590,9 @@
                                 batchSelect.innerHTML +=
                                     `<option value="${batch.id}">${batch.batch_number} (Prod: ${batch.production_date})</option>`;
                             });
+                        })
+                        .catch(error => {
+                            console.error('Error loading batches:', error);
                         });
                 }
             });
@@ -560,39 +600,42 @@
             // Show/hide batch selection based on reservation type
             reservationType.addEventListener('change', function() {
                 const productGroup = document.getElementById('productRow');
-                const productSelect = document.getElementById('product_id');
+                const productSelectElem = document.getElementById('product_id');
                 const batchGroup = document.getElementById('batchRow');
-                const batchSelect = document.getElementById('batch_id');
+                const batchSelectElem = document.getElementById('batch_id');
 
                 if (this.value === 'product_batch') {
                     // Product + Batch mode
                     productGroup.style.display = 'block';
                     batchGroup.style.display = 'block';
-                    productSelect.required = true;
-                    batchSelect.required = true;
-                    document.querySelector('label[for="product_id"]').innerHTML = 'Select Product *';
+                    productSelectElem.required = true;
+                    batchSelectElem.required = true;
+                    const label = document.querySelector('#productRow label');
+                    if (label) label.innerHTML = 'Select Product *';
                 } else if (this.value === 'product_only') {
                     // Product Only mode
                     productGroup.style.display = 'block';
                     batchGroup.style.display = 'none';
-                    productSelect.required = true;
-                    batchSelect.required = false;
-                    batchSelect.value = '';
-                    document.querySelector('label[for="product_id"]').innerHTML = 'Select Product * (Any Batch)';
+                    productSelectElem.required = true;
+                    batchSelectElem.required = false;
+                    batchSelectElem.value = '';
+                    const label = document.querySelector('#productRow label');
+                    if (label) label.innerHTML = 'Select Product * (Any Batch)';
                 } else {
                     productGroup.style.display = 'none';
                     batchGroup.style.display = 'none';
-                    productSelect.required = false;
-                    batchSelect.required = false;
+                    productSelectElem.required = false;
+                    batchSelectElem.required = false;
                 }
             });
 
+            // Form validation
             document.getElementById('reservationForm').addEventListener('submit', function(e) {
-                const reservationType = document.getElementById('reservation_type').value;
+                const reservationTypeVal = document.getElementById('reservation_type').value;
                 const productId = document.getElementById('product_id').value;
                 const batchId = document.getElementById('batch_id').value;
 
-                if (!reservationType) {
+                if (!reservationTypeVal) {
                     e.preventDefault();
                     alert('Please select a reservation type');
                     return false;
@@ -604,7 +647,7 @@
                     return false;
                 }
 
-                if (reservationType === 'product_batch' && !batchId) {
+                if (reservationTypeVal === 'product_batch' && !batchId) {
                     e.preventDefault();
                     alert('Please select a batch for this reservation');
                     return false;
@@ -613,17 +656,10 @@
                 return true;
             });
 
-            function selectLocation(locationCode) {
-                document.getElementById('location_code').value = locationCode;
-                // Scroll to form
-                document.querySelector('.reservation-form').scrollIntoView({
-                    behavior: 'smooth'
-                });
-            }
-
+            // Edit Reservation Functions
             let currentEditId = null;
 
-            function editReservation(id) {
+            window.editReservation = function(id) {
                 currentEditId = id;
 
                 // Fetch reservation details
@@ -643,12 +679,12 @@
                             fetch(`/admin/get-batches-by-product/${data.product_id}`)
                                 .then(response => response.json())
                                 .then(batches => {
-                                    const batchSelect = document.getElementById('edit_batch_id');
-                                    batchSelect.innerHTML = '<option value="">-- Select Batch --</option>';
+                                    const batchSelectElem = document.getElementById('edit_batch_id');
+                                    batchSelectElem.innerHTML = '<option value="">-- Select Batch --</option>';
                                     batches.forEach(batch => {
-                                        batchSelect.innerHTML += `<option value="${batch.id}" ${batch.id == data.batch_id ? 'selected' : ''}>
-                                ${batch.batch_number} (Prod: ${batch.production_date})
-                            </option>`;
+                                        batchSelectElem.innerHTML += `<option value="${batch.id}" ${batch.id == data.batch_id ? 'selected' : ''}>
+                                    ${batch.batch_number} (Prod: ${batch.production_date})
+                                </option>`;
                                     });
                                     document.getElementById('edit_batch_id').value = data.batch_id;
                                 });
@@ -661,37 +697,40 @@
                         console.error('Error:', error);
                         alert('Failed to load reservation details');
                     });
-            }
+            };
 
-            function closeModal() {
+            window.closeModal = function() {
                 document.getElementById('editModal').style.display = 'none';
-            }
+            };
 
             // Handle edit form reservation type change
-            document.getElementById('edit_reservation_type').addEventListener('change', function() {
-                const productGroup = document.getElementById('edit_product_group');
-                const batchGroup = document.getElementById('edit_batch_group');
-                const productSelect = document.getElementById('edit_product_id');
-                const batchSelect = document.getElementById('edit_batch_id');
+            const editReservationType = document.getElementById('edit_reservation_type');
+            if (editReservationType) {
+                editReservationType.addEventListener('change', function() {
+                    const productGroup = document.getElementById('edit_product_group');
+                    const batchGroup = document.getElementById('edit_batch_group');
+                    const productSelectElem = document.getElementById('edit_product_id');
+                    const batchSelectElem = document.getElementById('edit_batch_id');
 
-                if (this.value === 'product_batch') {
-                    productGroup.style.display = 'block';
-                    batchGroup.style.display = 'block';
-                    productSelect.required = true;
-                    batchSelect.required = true;
-                } else if (this.value === 'product_only') {
-                    productGroup.style.display = 'block';
-                    batchGroup.style.display = 'none';
-                    productSelect.required = true;
-                    batchSelect.required = false;
-                    batchSelect.value = '';
-                } else {
-                    productGroup.style.display = 'none';
-                    batchGroup.style.display = 'none';
-                    productSelect.required = false;
-                    batchSelect.required = false;
-                }
-            });
+                    if (this.value === 'product_batch') {
+                        productGroup.style.display = 'block';
+                        batchGroup.style.display = 'block';
+                        productSelectElem.required = true;
+                        batchSelectElem.required = true;
+                    } else if (this.value === 'product_only') {
+                        productGroup.style.display = 'block';
+                        batchGroup.style.display = 'none';
+                        productSelectElem.required = true;
+                        batchSelectElem.required = false;
+                        batchSelectElem.value = '';
+                    } else {
+                        productGroup.style.display = 'none';
+                        batchGroup.style.display = 'none';
+                        productSelectElem.required = false;
+                        batchSelectElem.required = false;
+                    }
+                });
+            }
 
             // Close modal when clicking outside
             window.onclick = function(event) {
@@ -700,6 +739,19 @@
                     closeModal();
                 }
             }
+
+            // Add click event listeners to location cells directly (alternative to onclick attribute)
+            document.addEventListener('DOMContentLoaded', function() {
+                const locationCells = document.querySelectorAll('.location-cell-reserve');
+                locationCells.forEach(cell => {
+                    // Remove existing onclick and add event listener
+                    const locationCode = cell.getAttribute('data-location');
+                    cell.removeAttribute('onclick');
+                    cell.addEventListener('click', function() {
+                        window.selectLocation(locationCode);
+                    });
+                });
+            });
         </script>
     @endpush
 @endsection
