@@ -19,7 +19,7 @@ class BatchController extends Controller
     {
         $data = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'batch_number' => 'required|string|unique:batches,batch_number',
+            'batch_number' => 'required|string',
             'production_date' => 'required|date|before_or_equal:today',
         ]);
 
