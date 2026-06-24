@@ -409,6 +409,10 @@
                 </div>
                 <button class="btn btn-green" id="manualRefresh">⟳ Refresh Now</button>
                 <button class="btn btn-purple" id="fullscreenBtn">⛶ Fullscreen</button>
+                <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                    @csrf
+                    <button type="submit" class="logout-btn">Logout</button>
+                </form>
                 <div class="last-update" id="lastUpdate">Last update: —</div>
             </div>
         </div>
@@ -493,9 +497,8 @@
                             bgColor = loc.color_code || '#4caf50';
                             const pct = ((loc.quantity / loc.max_depth) * 100).toFixed(0);
                             content = `<div class="cell-content">
-                            <strong>${loc.product_name}</strong>
-                            <div>${loc.sku}</div>
-                            <div style="font-size:0.62rem">Batch: ${loc.batch_number}</div>
+                            <strong style="font-size:1rem">${loc.product_name} ${loc.sku}</strong>
+                            <strong style="font-size:1rem">Batch: ${loc.batch_number}</strong>
                             <div style="font-weight:700">${loc.quantity}/${loc.max_depth}</div>
                             <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
                         </div>`;

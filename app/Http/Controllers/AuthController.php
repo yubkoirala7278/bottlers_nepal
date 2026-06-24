@@ -26,6 +26,13 @@ class AuthController extends Controller
         
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+            $user = Auth::user();
+
+            // If the user is a matrix_user, always send them to the warehouse matrix
+            if ($user->role === 'matrix_user') {
+                return redirect('/warehouse-matrix/full');
+            }
+
             return redirect()->intended('/dashboard');
         }
         

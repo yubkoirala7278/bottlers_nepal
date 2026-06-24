@@ -117,6 +117,8 @@
                         Inbound Staff</option>
                     <option value="outbound_staff" {{ old('role', $user->role) == 'outbound_staff' ? 'selected' : '' }}>
                         Outbound Staff</option>
+                    <option value="matrix_user" {{ old('role', $user->role) == 'matrix_user' ? 'selected' : '' }}>
+                        Matrix User</option>
                 </select>
                 @error('role')
                     <div class="error">{{ $message }}</div>

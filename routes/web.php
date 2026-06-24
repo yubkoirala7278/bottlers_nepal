@@ -24,7 +24,9 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('role:admin,inbound_staff,outbound_staff')
+        ->name('dashboard');
 
     // Inbound Management (Admin + Inbound Staff)
     Route::middleware('role:admin,inbound_staff')
@@ -47,6 +49,14 @@ Route::middleware('auth')->group(function () {
             Route::post('/pickup', [OutboundController::class, 'pickup'])->name('pickup');
         });
 
+    Route::middleware('role:admin,matrix_user')->group(function () {
+        // Warehouse Matrix
+        Route::prefix('warehouse-matrix')->name('warehouse.matrix')->group(function () {
+            Route::get('/full', [WarehouseLocationController::class, 'matrixFull'])->name('.full');
+            Route::get('/data', [WarehouseLocationController::class, 'getMatrixData'])->name('.data');
+        });
+    });
+
     // Admin-Only Routes 
     Route::middleware('role:admin')->group(function () {
         // Profile Management
@@ -54,12 +64,6 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [UserController::class, 'profile'])->name('profile');
             Route::put('/', [UserController::class, 'updateProfile'])->name('profile.update');
             Route::put('/password', [UserController::class, 'updatePassword'])->name('password.update');
-        });
-
-        // Warehouse Matrix
-        Route::prefix('warehouse-matrix')->name('warehouse.matrix')->group(function () {
-            Route::get('/full', [WarehouseLocationController::class, 'matrixFull'])->name('.full');
-            Route::get('/data', [WarehouseLocationController::class, 'getMatrixData'])->name('.data');
         });
 
         // Resource routes

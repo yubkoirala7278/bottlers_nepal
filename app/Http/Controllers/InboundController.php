@@ -62,51 +62,56 @@ class InboundController extends Controller
             $priorityHeights = [];
 
             if (in_array($volume, [175, 250])) {
-                // 175ml and 250ml: only height 1 & 2
-                // Priority: height 2 first, then height 1
                 $allowedHeights = [1, 2];
                 $priorityHeights = [2, 1];
             } elseif (in_array($volume, [1000, 1500])) {
-                // 1000ml and 1500ml: only height 6 and 1
-                // Priority: height 6 FIRST, then height 1
                 $allowedHeights = [1, 6];
-                $priorityHeights = [6, 1];  // Height 6 first, then height 1
+                $priorityHeights = [6, 1];
             } elseif ($volume == 2250) {
-                // 2250ml: height 1 to 5 (exclude height 6)
                 $allowedHeights = [1, 2, 3, 4, 5];
-                // Priority: height 3,4,5 first, then height 2, then height 1
                 $priorityHeights = [3, 4, 5, 2, 1];
             } else {
-                // Default for other sizes: all heights
                 $allowedHeights = [1, 2, 3, 4, 5, 6];
                 $priorityHeights = [3, 4, 5, 2, 1, 6];
             }
 
-            // Rule a: Find existing location with same product+sku+batch
+            // ============================================================
+            // RULE A: Find existing location with SAME BATCH (MOST IMPORTANT)
+            // This should be the FIRST priority - always suggest existing same batch location
+            // ============================================================
             $existingLocation = WarehouseLocation::whereHas('inventory', function ($query) use ($batchId) {
                 $query->where('batch_id', $batchId);
-            })->with(['inventory' => function ($query) use ($batchId) {
-                $query->where('batch_id', $batchId);
-            }])->first();
+            })
+                ->where('current_fill', '<', DB::raw('max_depth'))  // Must have available space
+                ->with(['inventory' => function ($query) use ($batchId) {
+                    $query->where('batch_id', $batchId);
+                }])
+                ->orderBy('level')
+                ->orderBy('height', 'desc')
+                ->first();
 
             if ($existingLocation && $existingLocation->available_space > 0) {
                 // Check if existing location height is allowed for this product
                 if (in_array($existingLocation->height, $allowedHeights)) {
                     // Check if location is not A1
                     if ($existingLocation->location_code !== 'A1') {
+                        $currentBatchQuantity = $existingLocation->inventory->first()->quantity ?? 0;
+
                         return response()->json([
                             'found' => true,
                             'type' => 'existing_batch',
                             'location' => $existingLocation->location_code,
                             'available_space' => $existingLocation->available_space,
                             'max_allowed' => min($existingLocation->available_space, 50),
-                            'message' => "Same batch found at {$existingLocation->location_code}. {$existingLocation->available_space} spaces available."
+                            'message' => "Same batch found at {$existingLocation->location_code}. Currently has {$currentBatchQuantity} units. {$existingLocation->available_space} spaces available."
                         ]);
                     }
                 }
             }
 
-            // Rule b: Check reserved place for product+sku+batch
+            // ============================================================
+            // RULE B: Check reserved place for product+sku+batch
+            // ============================================================
             $reservedForBatch = Reservation::where('batch_id', $batchId)
                 ->where('reservation_type', 'product_batch')
                 ->with('warehouseLocation')
@@ -114,13 +119,11 @@ class InboundController extends Controller
 
             if ($reservedForBatch && $reservedForBatch->warehouseLocation) {
                 $location = $reservedForBatch->warehouseLocation;
-                // Allow placement if location is empty OR has same batch
                 $hasSameBatch = Inventory::where('warehouse_location_id', $location->id)
                     ->where('batch_id', $batchId)
                     ->exists();
 
                 if ($location->available_space > 0 && ($location->current_fill == 0 || $hasSameBatch)) {
-                    // Check if reserved location height is allowed and not A1
                     if (in_array($location->height, $allowedHeights) && $location->location_code !== 'A1') {
                         return response()->json([
                             'found' => true,
@@ -134,7 +137,9 @@ class InboundController extends Controller
                 }
             }
 
-            // Rule c: Check reserved place for product+sku only
+            // ============================================================
+            // RULE C: Check reserved place for product+sku only
+            // ============================================================
             $reservedForProduct = Reservation::where('product_id', $productId)
                 ->whereNull('batch_id')
                 ->where('reservation_type', 'product_only')
@@ -143,7 +148,6 @@ class InboundController extends Controller
 
             if ($reservedForProduct && $reservedForProduct->warehouseLocation) {
                 $location = $reservedForProduct->warehouseLocation;
-                // Allow placement if location is empty OR has same product batch
                 $hasSameProductBatch = Inventory::where('warehouse_location_id', $location->id)
                     ->whereHas('batch', function ($q) use ($productId) {
                         $q->where('product_id', $productId);
@@ -151,7 +155,6 @@ class InboundController extends Controller
                     ->exists();
 
                 if ($location->available_space > 0 && ($location->current_fill == 0 || $hasSameProductBatch)) {
-                    // Check if reserved location height is allowed and not A1
                     if (in_array($location->height, $allowedHeights) && $location->location_code !== 'A1') {
                         return response()->json([
                             'found' => true,
@@ -165,15 +168,16 @@ class InboundController extends Controller
                 }
             }
 
-            // Rule d: Find any empty space with priority heights
-            // First, try to find empty location within allowed heights, excluding A1
+            // ============================================================
+            // RULE D: Find any empty space with priority heights
+            // ============================================================
             $emptyLocation = null;
 
             foreach ($priorityHeights as $priorityHeight) {
                 if (in_array($priorityHeight, $allowedHeights)) {
                     $emptyLocation = WarehouseLocation::where('current_fill', 0)
                         ->where('height', $priorityHeight)
-                        ->where('location_code', '!=', 'A1')  // Exclude A1
+                        ->where('location_code', '!=', 'A1')
                         ->whereDoesntHave('inventory')
                         ->whereDoesntHave('reservation')
                         ->orderBy('level')
@@ -196,15 +200,16 @@ class InboundController extends Controller
                 ]);
             }
 
-            // Check partially filled locations that might have space for same batch
-            // Also apply height restrictions with priority
+            // ============================================================
+            // RULE E: Check partially filled locations with same batch
+            // ============================================================
             $partialLocation = null;
 
             foreach ($priorityHeights as $priorityHeight) {
                 if (in_array($priorityHeight, $allowedHeights)) {
                     $partialLocation = WarehouseLocation::where('current_fill', '<', DB::raw('max_depth'))
                         ->where('height', $priorityHeight)
-                        ->where('location_code', '!=', 'A1')  // Exclude A1
+                        ->where('location_code', '!=', 'A1')
                         ->whereHas('inventory', function ($query) use ($batchId) {
                             $query->where('batch_id', $batchId);
                         })
@@ -228,17 +233,18 @@ class InboundController extends Controller
                 ]);
             }
 
-            // If no location found in priority heights, try any allowed height (fallback)
+            // ============================================================
+            // RULE F: Fallback - any available location
+            // ============================================================
             $fallbackLocation = WarehouseLocation::where('current_fill', '<', DB::raw('max_depth'))
                 ->whereIn('height', $allowedHeights)
-                ->where('location_code', '!=', 'A1')  // Exclude A1
+                ->where('location_code', '!=', 'A1')
                 ->whereDoesntHave('reservation')
                 ->orderByRaw('FIELD(height, ' . implode(',', $priorityHeights) . ')')
                 ->orderBy('level')
                 ->first();
 
             if ($fallbackLocation && $fallbackLocation->available_space > 0) {
-                // Check if same batch exists
                 $hasSameBatch = Inventory::where('warehouse_location_id', $fallbackLocation->id)
                     ->where('batch_id', $batchId)
                     ->exists();

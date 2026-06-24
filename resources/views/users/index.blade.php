@@ -205,6 +205,10 @@
                 <div class="stat-number" style="color: #f59e0b;">{{ $stats['outbound'] }}</div>
                 <div class="stat-label">Outbound Staff</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-number" style="color: #4338ca;">{{ $stats['matrix'] }}</div>
+                <div class="stat-label">Matrix Users</div>
+            </div>
         </div>
 
         <!-- Users Table -->
@@ -287,88 +291,91 @@
     </div>
 
     @push('scripts')
-<script>
-    document.querySelectorAll('.toggle-status').forEach(toggle => {
-        toggle.addEventListener('change', function() {
-            const userId = this.dataset.id;
-            const isActive = this.checked;
-            const originalState = !isActive;
-            
-            // Show loading state
-            this.disabled = true;
-            
-            fetch(`/users/${userId}/toggle-status`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: JSON.stringify({ 
-                    is_active: isActive,
-                    _method: 'POST' 
-                })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw err; });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showToast(data.message, 'success');
-                    
-                    // Update the status badge in the same row
-                    const row = toggle.closest('tr');
-                    const statusBadge = row.querySelector('.status-badge');
-                    if (statusBadge) {
-                        if (data.is_active) {
-                            statusBadge.className = 'status-badge status-active';
-                            statusBadge.textContent = 'Active';
-                        } else {
-                            statusBadge.className = 'status-badge status-inactive';
-                            statusBadge.textContent = 'Inactive';
-                        }
-                    }
-                } else {
-                    // Revert the toggle
-                    this.checked = originalState;
-                    showToast(data.message || 'Error updating user status', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                // Revert the toggle
-                this.checked = originalState;
-                showToast(error.message || 'Error updating user status. Please try again.', 'error');
-            })
-            .finally(() => {
-                // Re-enable the toggle
-                this.disabled = false;
+        <script>
+            document.querySelectorAll('.toggle-status').forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const userId = this.dataset.id;
+                    const isActive = this.checked;
+                    const originalState = !isActive;
+
+                    // Show loading state
+                    this.disabled = true;
+
+                    fetch(`/users/${userId}/toggle-status`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify({
+                                is_active: isActive,
+                                _method: 'POST'
+                            })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.json().then(err => {
+                                    throw err;
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                // Show success message
+                                showToast(data.message, 'success');
+
+                                // Update the status badge in the same row
+                                const row = toggle.closest('tr');
+                                const statusBadge = row.querySelector('.status-badge');
+                                if (statusBadge) {
+                                    if (data.is_active) {
+                                        statusBadge.className = 'status-badge status-active';
+                                        statusBadge.textContent = 'Active';
+                                    } else {
+                                        statusBadge.className = 'status-badge status-inactive';
+                                        statusBadge.textContent = 'Inactive';
+                                    }
+                                }
+                            } else {
+                                // Revert the toggle
+                                this.checked = originalState;
+                                showToast(data.message || 'Error updating user status', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            // Revert the toggle
+                            this.checked = originalState;
+                            showToast(error.message || 'Error updating user status. Please try again.',
+                                'error');
+                        })
+                        .finally(() => {
+                            // Re-enable the toggle
+                            this.disabled = false;
+                        });
+                });
             });
-        });
-    });
-    
-    function showToast(message, type = 'success') {
-        // Remove existing toast
-        const existingToast = document.querySelector('.toast-message');
-        if (existingToast) {
-            existingToast.remove();
-        }
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast-message toast-${type}`;
-        toast.innerHTML = `
+
+            function showToast(message, type = 'success') {
+                // Remove existing toast
+                const existingToast = document.querySelector('.toast-message');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+
+                // Create toast element
+                const toast = document.createElement('div');
+                toast.className = `toast-message toast-${type}`;
+                toast.innerHTML = `
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <span>${type === 'success' ? '✓' : '✗'}</span>
                 <span>${message}</span>
             </div>
         `;
-        toast.style.cssText = `
+                toast.style.cssText = `
             position: fixed;
             bottom: 20px;
             right: 20px;
@@ -381,19 +388,19 @@
             animation: slideIn 0.3s ease-out;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         `;
-        
-        document.body.appendChild(toast);
-        
-        // Remove toast after 3 seconds
-        setTimeout(() => {
-            toast.style.animation = 'slideOut 0.3s ease-out';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
-    
-    // Add animation styles
-    const style = document.createElement('style');
-    style.textContent = `
+
+                document.body.appendChild(toast);
+
+                // Remove toast after 3 seconds
+                setTimeout(() => {
+                    toast.style.animation = 'slideOut 0.3s ease-out';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+
+            // Add animation styles
+            const style = document.createElement('style');
+            style.textContent = `
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -416,7 +423,7 @@
             }
         }
     `;
-    document.head.appendChild(style);
-</script>
-@endpush
+            document.head.appendChild(style);
+        </script>
+    @endpush
 @endsection

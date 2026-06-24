@@ -122,6 +122,8 @@
                     </option>
                     <option value="outbound_staff" {{ old('role') == 'outbound_staff' ? 'selected' : '' }}>Outbound Staff
                     </option>
+                    <option value="matrix_user" {{ old('role') == 'matrix_user' ? 'selected' : '' }}>Matrix User
+                    </option>
                 </select>
                 @error('role')
                     <div class="error">{{ $message }}</div>

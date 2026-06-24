@@ -22,6 +22,7 @@ class UserController extends Controller
             'admins' => User::where('role', 'admin')->count(),
             'inbound' => User::where('role', 'inbound_staff')->count(),
             'outbound' => User::where('role', 'outbound_staff')->count(),
+            'matrix' => User::where('role', 'matrix_user')->count(),
         ];
 
         return view('users.index', compact('users', 'stats'));
@@ -38,7 +39,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|in:admin,inbound_staff,outbound_staff',
+            'role' => 'required|in:admin,inbound_staff,outbound_staff,matrix_user',
             'is_active' => 'boolean',
         ], [
             'email.unique' => 'This email address is already registered.',
@@ -84,7 +85,7 @@ class UserController extends Controller
                 'email',
                 Rule::unique('users')->ignore($user->id),
             ],
-            'role' => 'required|in:admin,inbound_staff,outbound_staff',
+            'role' => 'required|in:admin,inbound_staff,outbound_staff,matrix_user',
             'is_active' => 'boolean',
         ]);
 
